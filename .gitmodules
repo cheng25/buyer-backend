@@ -1,0 +1,27 @@
+[submodule "libs/jwt-cpp"]
+	path = libs/jwt-cpp
+	url = https://github.com/Thalhammer/jwt-cpp
+[submodule "libs/libargon2"]
+	path = libs/libargon2
+	url = https://github.com/P-H-C/phc-winner-argon2
+[submodule "libs/cppzmq"]
+	path = libs/cppzmq
+	url = https://github.com/zeromq/cppzmq
+[submodule "libs/boost-uuid"]
+	path = libs/boost-uuid
+	url = https://github.com/boostorg/uuid
+[submodule "libs/glaze"]
+	path = libs/glaze
+	url = https://github.com/stephenberry/glaze
+[submodule "libs/unordered-dense"]
+	path = libs/unordered-dense
+	url = https://github.com/martinus/unordered_dense
+[submodule "libs/redis-plus-plus"]
+	path = libs/redis-plus-plus
+	url = https://github.com/sewenew/redis-plus-plus
+[submodule "libs/aws-sdk-cpp"]
+	path = libs/aws-sdk-cpp
+	url = https://github.com/aws/aws-sdk-cpp
+[submodule "libs/curl"]
+	path = libs/curl
+	url = https://github.com/curl/curl
