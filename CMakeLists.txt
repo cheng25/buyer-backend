@@ -121,17 +121,28 @@ set(BUILD_SHARED OFF CACHE BOOL "" FORCE)
 set(BUILD_STATIC ON CACHE BOOL "" FORCE)
 set(WITH_PERF_TOOL OFF CACHE BOOL "" FORCE)
 set(ZMQ_CPP11 ON CACHE BOOL "" FORCE)
+# 修复 No WSS support 警告：明确关闭 WSS，不提示
 set(ZMQ_WSS OFF CACHE BOOL "" FORCE)
+set(WITH_LIBGCRYPT OFF CACHE BOOL "" FORCE)
+set(WITH_TLS OFF CACHE BOOL "" FORCE)
 add_subdirectory(libs/libzmq)
 
 # 5.2 cppzmq（头文件包装）
 set(CPPZMQ_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 add_subdirectory(libs/cppzmq)
 # 禁用 cppzmq 自动链接 libzmq（解决 -llibzmq 报错！）
-set_target_properties(cppzmq PROPERTIES INTERFACE_LINK_LIBRARIES "")
-target_link_libraries(cppzmq INTERFACE libzmq-static)
-target_include_directories(${PROJECT_NAME} PRIVATE
-        libs/libzmq/include)
+#set_target_properties(cppzmq PROPERTIES INTERFACE_LINK_LIBRARIES "")
+#target_link_libraries(cppzmq INTERFACE libzmq-static)
+#target_include_directories(${PROJECT_NAME} PRIVATE
+#        libs/libzmq/include)
+
+# 创建一个接口库来封装 cppzmq + libzmq 的依赖
+add_library(my_cppzmq INTERFACE)
+target_include_directories(my_cppzmq INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/libs/cppzmq
+)
+target_link_libraries(my_cppzmq INTERFACE libzmq-static)
+
 
 # 6. boost-uuid
 # ======================
@@ -165,8 +176,9 @@ target_link_libraries(${PROJECT_NAME} PRIVATE Drogon::Drogon
                                               jwt-cpp::jwt-cpp 
                                               #unofficial::argon2::libargon2
                                               argon2::argon2
-                                              cppzmq 
-                                              libzmq-static
+                                              # cppzmq
+                                              # libzmq-static
+                                              my_cppzmq #使用 my_cppzmq 代替 cppzmq
                                               redis++_static
                                               #Boost::uuid 源码引入，不需要
                                               aws-cpp-sdk-core
