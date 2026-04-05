@@ -320,10 +320,23 @@ Task<> Chats::get_messages(HttpRequestPtr req,
     messages_list.reserve(messages_result.size());
     for (const auto& row : messages_result) {
       int message_id = row["id"].as<int>();
+
+#if 0
+      //See <file:///usr/share/doc/gcc-14/README.Bugs> for instructions.
       auto media_attachments =
           row["message_type"].as<std::string>() != "text"
               ? co_await get_media_attachments("message", message_id)
               : std::unexpected<std::string>("failed");
+#else
+      // ============== 安全改写版本 ==============
+      std::optional<std::vector<MediaQuickInfo>> media_attachments;
+      if (row["message_type"].as<std::string>() != "text") {
+        auto res = co_await get_media_attachments("message", message_id);
+        media_attachments = res.value_or(std::vector<MediaQuickInfo>());
+      } else {
+        media_attachments = {};
+      }
+# endif
       messages_list.emplace_back(
           Message{.id = message_id,
                   .sender_id = row["sender_id"].as<int>(),
@@ -333,7 +346,8 @@ Task<> Chats::get_messages(HttpRequestPtr req,
                   .is_read = row["is_read"].as<bool>(),
                   .created_at = row["created_at"].as<std::string>(),
                   .metadata = row["metadata"].as<std::string>(),
-                  .media = media_attachments.value_or({})});
+                  /*.media = media_attachments.value_or({})});*/
+                  .media = media_attachments.value_or(std::vector<MediaQuickInfo>())});
     }
     auto resp = HttpResponse::newHttpResponse(k200OK, CT_APPLICATION_JSON);
     resp->setBody(glz::write_json(messages_list).value_or(""));

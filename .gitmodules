@@ -7,9 +7,6 @@
 [submodule "libs/cppzmq"]
 	path = libs/cppzmq
 	url = https://github.com/zeromq/cppzmq
-[submodule "libs/boost-uuid"]
-	path = libs/boost-uuid
-	url = https://github.com/boostorg/uuid
 [submodule "libs/glaze"]
 	path = libs/glaze
 	url = https://github.com/stephenberry/glaze
@@ -25,3 +22,24 @@
 [submodule "libs/curl"]
 	path = libs/curl
 	url = https://github.com/curl/curl
+[submodule "libs/libzmq"]
+	path = libs/libzmq
+	url = https://github.com/zeromq/libzmq
+[submodule "libs/boost/uuid"]
+	path = libs/boost/uuid
+	url = https://github.com/boostorg/uuid
+[submodule "libs/boost/assert"]
+	path = libs/boost/assert
+	url = https://github.com/boostorg/assert
+[submodule "libs/boost/config"]
+	path = libs/boost/config
+	url = https://github.com/boostorg/config
+[submodule "libs/boost/throw_exception"]
+	path = libs/boost/throw_exception
+	url = https://github.com/boostorg/throw_exception
+[submodule "libs/boost/type_traits"]
+	path = libs/boost/type_traits
+	url = https://github.com/boostorg/type_traits
+[submodule "libs/boost/core"]
+	path = libs/boost/core
+	url = https://github.com/boostorg/core

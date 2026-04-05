@@ -147,7 +147,8 @@ Task<> Community::get_posts(
                               : row["price_range"].as<std::string>(),
            .subscription_count = row["subscription_count"].as<int>(),
            .is_subscribed = row["is_subscribed"].as<bool>(),
-           .media = media_attachments.value_or({})});
+          /*.media = media_attachments.value_or({})});*/
+          .media = media_attachments.value_or(std::vector<MediaQuickInfo>())});
     }
 
     auto resp = HttpResponse::newHttpResponse(k200OK, CT_APPLICATION_JSON);
@@ -369,7 +370,9 @@ Task<> Community::get_post_by_id(
                            : row["price_range"].as<std::string>(),
         .subscription_count = row["subscription_count"].as<int>(),
         .is_subscribed = row["is_subscribed"].as<bool>(),
-        .media = media_attachments.value_or({})};
+        /*.media = media_attachments.value_or({})*/
+      .media = media_attachments.value_or(std::vector<MediaQuickInfo>())
+    };
 
     auto resp = HttpResponse::newHttpResponse(k200OK, CT_APPLICATION_JSON);
     resp->setBody(glz::write_json(post_obj).value_or(""));
@@ -693,7 +696,8 @@ Task<> Community::filter_posts(
                              : row["price_range"].as<std::string>(),
           .subscription_count = row["subscription_count"].as<int>(),
           .is_subscribed = row["is_subscribed"].as<bool>(),
-          .media = media_attachments.value_or({})});
+        /*.media = media_attachments.value_or({})});*/
+        .media = media_attachments.value_or(std::vector<MediaQuickInfo>())});
     }
     auto resp = HttpResponse::newHttpResponse(k200OK, CT_APPLICATION_JSON);
     resp->setBody(glz::write_json(posts_list).value_or(""));

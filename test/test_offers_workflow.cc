@@ -68,7 +68,7 @@ DROGON_TEST(OffersWorkflowTest) {
   std::string token3 = (*resp_json3)["token"].asString();
 
   // Get user IDs for  test users
-  drogon::orm::Result user1_result, user2_result, user3_result;
+  drogon::orm::Result user1_result{nullptr}, user2_result{nullptr}, user3_result{nullptr};
   REQUIRE_NOTHROW(user1_result = db_client->execSqlSync(
                       "SELECT id FROM users WHERE username = 'testoffer1'"));
   REQUIRE_NOTHROW(user2_result = db_client->execSqlSync(

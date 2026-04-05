@@ -68,7 +68,7 @@ class WebSocketAuthMiddleware
       else if (payload_type == jwt::json::type::string)
         user_id = claim.as_string();
       else
-        throw std::exception("invalid type");
+        throw std::runtime_error("invalid type");
 
       req->getAttributes()->insert("current_user_id", user_id);
 

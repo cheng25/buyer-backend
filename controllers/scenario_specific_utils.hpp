@@ -100,7 +100,8 @@ process_media_attachments(
       std::string mime_type = !info.content_type.empty()
                                   ? info.content_type
                                   : "application/octet-stream";
-      int64_t& size = info.content_length;
+      //int64_t& size = info.content_length;
+      const auto& size = info.content_length;
 
       auto media_result = co_await transaction->execSqlCoro(
           "INSERT INTO media (uploader_id, storage_key, file_name, "
@@ -193,7 +194,8 @@ inline drogon::Task<> process_media_attachments_with_response(
       std::string mime_type = !info.content_type.empty()
                                   ? info.content_type
                                   : "application/octet-stream";
-      int64_t& size = info.content_length;
+      //int64_t& size = info.content_length;
+      const auto& size = info.content_length;
 
       auto media_result = co_await transaction->execSqlCoro(
           "INSERT INTO media (uploader_id, storage_key, file_name, "

@@ -171,7 +171,7 @@ Task<> Offers::get_offers_for_post(
 
     // Query to get offers, including private ones if the user is the post owner
     std::string query;
-    Result offers_result;
+    Result offers_result{nullptr};
 
     if (is_post_owner) {
       query =
@@ -215,7 +215,8 @@ Task<> Offers::get_offers_for_post(
                     .created_at = row["created_at"].as<std::string>(),
                     .updated_at = row["updated_at"].as<std::string>(),
                     .is_post_owner = is_post_owner,
-                    .media = media_attachments.value_or({})});
+                    /*.media = media_attachments.value_or({})});*/
+        .media = media_attachments.value_or(std::vector<MediaQuickInfo>())});
     }
 
     auto resp =
@@ -476,7 +477,9 @@ Task<> Offers::get_offer(HttpRequestPtr req,
         .updated_at = row["updated_at"].as<std::string>(),
         .is_owner = (current_user == offer_user_id),
         .is_post_owner = (current_user == post_owner_id),
-        .media = media_attachments.value_or({})};
+        /*.media = media_attachments.value_or({})*/
+        .media = media_attachments.value_or(std::vector<MediaQuickInfo>())
+    };
 
     auto resp =
         HttpResponse::newHttpResponse(drogon::k200OK, CT_APPLICATION_JSON);
@@ -790,7 +793,7 @@ Task<> Offers::accept_offer(
           convert::string_to_int(id).value());
 
       drogon::orm::Result
-          rejected_offers_result;  // nullptr, always inited in both branches
+          rejected_offers_result{nullptr};  // nullptr, always inited in both branches
 
       // For pending negotiations, accept the latest one and reject others
       if (!negotiation_result.empty()) {
@@ -1284,7 +1287,8 @@ Task<> Offers::get_my_offers(
           .status = row["status"].as<std::string>(),
           .created_at = row["created_at"].as<std::string>(),
           .updated_at = row["updated_at"].as<std::string>(),
-          .media = media_attachments.value_or({})});
+        /*.media = media_attachments.value_or({})});*/
+        .media = media_attachments.value_or(std::vector<MediaQuickInfo>())});
     }
 
     auto resp =
@@ -1341,7 +1345,8 @@ Task<> Offers::get_received_offers(
           .status = row["status"].as<std::string>(),
           .created_at = row["created_at"].as<std::string>(),
           .updated_at = row["updated_at"].as<std::string>(),
-          .media = media_attachments.value_or({})});
+          /*.media = media_attachments.value_or({})});*/
+          .media = media_attachments.value_or(std::vector<MediaQuickInfo>())});
     }
 
     auto resp =
