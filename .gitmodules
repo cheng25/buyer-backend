@@ -1,9 +1,6 @@
 [submodule "libs/jwt-cpp"]
 	path = libs/jwt-cpp
 	url = https://github.com/Thalhammer/jwt-cpp
-[submodule "libs/libargon2"]
-	path = libs/libargon2
-	url = https://github.com/P-H-C/phc-winner-argon2
 [submodule "libs/cppzmq"]
 	path = libs/cppzmq
 	url = https://github.com/zeromq/cppzmq
@@ -43,3 +40,6 @@
 [submodule "libs/boost/core"]
 	path = libs/boost/core
 	url = https://github.com/boostorg/core
+[submodule "libs/argon2/libargon2"]
+	path = libs/argon2/libargon2
+	url = https://github.com/P-H-C/phc-winner-argon2

@@ -61,7 +61,7 @@ add_subdirectory(libs/jwt-cpp)
 # 3. argon2
 set(ARGON2_TESTS OFF CACHE BOOL "" FORCE)
 set(ARGON2_INSTALL OFF CACHE BOOL "" FORCE)
-add_subdirectory(libs/libargon2)
+add_subdirectory(libs/argon2)
 
 # 4. AWS SDK (只开 S3，加快编译)
 # ==============================================
