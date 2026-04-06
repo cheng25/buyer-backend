@@ -15,7 +15,8 @@ using drogon::HttpResponse;
 
 class AuthMiddleware : public drogon::HttpCoroMiddleware<AuthMiddleware> {
  public:
-  AuthMiddleware() = default;
+  //AuthMiddleware() = default;
+  AuthMiddleware() {};// 不要使用 = default;ERROR middleware not found - MiddlewaresFunction.cc:164 NOLINT(*-use-equals-default)
 
   drogon::Task<drogon::HttpResponsePtr> invoke(
       const drogon::HttpRequestPtr &req,
