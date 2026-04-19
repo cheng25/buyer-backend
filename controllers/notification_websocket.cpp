@@ -14,6 +14,12 @@ struct WelcomeMessage {
   std::string message;
 };
 
+/**
+ * @brief Handle new message received from client 处理从客户端接收到的新消息
+ * @param wsConnPtr WebSocket connection pointer WebSocket连接指针
+ * @param message Message received from client 从客户端接收到的消息
+ * @param type Type of message received 消息类型
+ */
 void NotificationWebSocket::handleNewMessage(
     const WebSocketConnectionPtr& wsConnPtr, std::string&& message,
     const WebSocketMessageType& type) {
@@ -45,19 +51,24 @@ void NotificationWebSocket::handleNewMessage(
     case WebSocketMessageType::Binary:
       break;
     case WebSocketMessageType::Ping:
-      wsConnPtr->send("", drogon::WebSocketMessageType::Pong);
+      wsConnPtr->send("", drogon::WebSocketMessageType::Pong); // Send Pong to client
       break;
     case WebSocketMessageType::Pong:
-      wsConnPtr->send("", drogon::WebSocketMessageType::Ping);
+      wsConnPtr->send("", drogon::WebSocketMessageType::Ping);// Send Ping to client
       break;
     case WebSocketMessageType::Close:
-      wsConnPtr->forceClose();
+      wsConnPtr->forceClose();// Force Close the connection 强制中断连接
       return;
     default:
       LOG_WARN << "Received unknown message type";
   }
 }
 
+/**
+ * @brief Handle new connection from client 处理从客户端接新的连接
+ * @param req Http request pointer Http请求指针
+ * @param wsConnPtr WebSocket connection pointer WebSocket连接指针
+ */
 void NotificationWebSocket::handleNewConnection(
     const HttpRequestPtr& req, const WebSocketConnectionPtr& wsConnPtr) {
   std::string current_user_id =
@@ -65,7 +76,7 @@ void NotificationWebSocket::handleNewConnection(
 
   if (current_user_id.empty()) {
     LOG_ERROR << "No authenticated/registered user for WebSocket connection";
-    wsConnPtr->forceClose();
+    wsConnPtr->forceClose();// Force Close the connection 强制中断连接
     return;
   }
 
@@ -73,11 +84,11 @@ void NotificationWebSocket::handleNewConnection(
       std::make_shared<std::string>(current_user_id);
   wsConnPtr->setContext(std::static_pointer_cast<void>(ptr));
 
-  // Register WebSocket connection with Connection manager
+  // Register WebSocket connection with Connection manager 添加WebSocket连接到连接管理器中
   ServiceManager::get_instance().get_connection_manager().add_connection(
       current_user_id, wsConnPtr);
 
-  // Subscribe user to their existing tag subscriptions
+  // Subscribe user to their existing tag subscriptions 订阅用户到他们的现有标签订阅
   try {
     subscribe_user_to_existing_subs(current_user_id);
   } catch (const std::exception& e) {
@@ -92,15 +103,25 @@ void NotificationWebSocket::handleNewConnection(
   wsConnPtr->send(glz::write_json(welcome).value_or(""));
 }
 
+/**
+ * @brief Handle connection closed 处理连接关闭
+ * @param wsConnPtr WebSocket connection pointer WebSocket连接指针
+ */
 void NotificationWebSocket::handleConnectionClosed(
     const WebSocketConnectionPtr& wsConnPtr) {
   auto connId = wsConnPtr->getContext<std::string>();
+  // Remove WebSocket connection from Connection manager 删除WebSocket连接从连接管理器中
   ServiceManager::get_instance().get_connection_manager().remove_connection(
       *connId, wsConnPtr);
+  // Unsubscribe user from all subscriptions 取消用户对所有订阅的订阅
   ServiceManager::get_instance().get_connection_manager().unsubscribe(*connId);
   LOG_INFO << "WebSocket disconnected for user: " << *connId;
 }
 
+/**
+ * @brief Subscribe user to existing subscriptions 为用户订阅现有订阅
+ * @param user_id User ID 用户ID
+ */
 void NotificationWebSocket::subscribe_user_to_existing_subs(
     std::string user_id) {
   try {
@@ -111,8 +132,10 @@ void NotificationWebSocket::subscribe_user_to_existing_subs(
           for (const auto& row : result) {
             std::string channel = row["subscription"].as<std::string>();
             try {
+              // Subscribe to tag 订阅标签
               ServiceManager::get_instance().get_subscriber().subscribe(
                   channel);
+              // Add subscription to connection manager 添加订阅到连接管理器中
               ServiceManager::get_instance().get_connection_manager().subscribe(
                   channel, user_id);
             } catch (const std::exception& e) {

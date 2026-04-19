@@ -3,6 +3,7 @@
 #include <argon2.h>
 #include <drogon/HttpResponse.h>
 
+// 确保了 jwt-cpp 使用 JsonCpp 后端，而不是默认的 picojson 解析器。
 #ifndef JWT_DISABLE_PICOJSON
 #define JWT_DISABLE_PICOJSON
 #endif
@@ -20,7 +21,9 @@
 #include "../utilities/validation.hpp"
 #include "common_req_n_resp.hpp"
 
+//32 字节的哈希输出
 #define ARGON2_HASH_LEN 32
+//16 字节的盐值
 #define ARGON2_SALT_LEN 16
 
 using drogon::app;
@@ -33,6 +36,9 @@ using drogon::orm::DrogonDbException;
 
 using api::v1::Authentication;
 
+/*
+ * @brief 生成随机字符串
+ */
 std::string generate_random_string(size_t length) {
   const std::string chars =
       "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -80,21 +86,25 @@ std::string base64_encode(std::span<const uint8_t> data) {
   return encoded;
 }
 
+/*
+ * @brief 生成JWT令牌Token
+ */
 std::string generate_jwt(int user_id, const std::string& username) {
+  //
   const std::string secret = config::JWT_SECRET;
 
-  auto now = std::chrono::system_clock::now();
-  auto exp = now + std::chrono::hours(1);
+  const auto now = std::chrono::system_clock::now();
+  const auto exp = now + std::chrono::hours(1);
 
   using traits = jwt::traits::open_source_parsers_jsoncpp;
 
   auto token =
       jwt::create<traits>()
-          .set_issuer("buyer-app")
-          .set_issued_at(now)
-          .set_expires_at(exp)
+          .set_issuer("buyer-app")  /* 签发者*/
+          .set_issued_at(now)  /* 签发时间*/
+          .set_expires_at(exp)  /* 过期时间*/
           .set_payload_claim("user_id",
-                             jwt::basic_claim<traits>(std::to_string(user_id)))
+                             jwt::basic_claim<traits>(std::to_string(user_id)))/*载荷*/
           .set_payload_claim("username", jwt::basic_claim<traits>(username))
           .sign(jwt::algorithm::hs256{secret});
 
@@ -103,26 +113,32 @@ std::string generate_jwt(int user_id, const std::string& username) {
 
 std::string generate_refresh_token() { return generate_random_string(64); }
 
+/*
+ * @brief 密码加密
+ */
 std::string hash_password_with_argon2(const std::string& password) {
-  uint8_t salt[ARGON2_SALT_LEN];
-  std::random_device rd;
+  uint8_t salt[ARGON2_SALT_LEN]; // 16 字节的盐值
+  std::random_device rd;//  随机数生成器
   std::mt19937 generator(rd());
-  std::uniform_int_distribution<short> distribution(0, 255);
+  std::uniform_int_distribution<short> distribution(0, 255);// 统一分布
 
   for (size_t i = 0; i < ARGON2_SALT_LEN; ++i) {
     salt[i] = static_cast<uint8_t>(distribution(generator));
   }
 
   // Argon2 parameters
-  uint32_t t_cost = 3;        // Number of iterations
-  uint32_t m_cost = 1 << 16;  // 64 MiB memory cost
-  uint32_t parallelism = 1;   // Number of threads
+  uint32_t t_cost = 3;        // Number of iterations 迭代次数
+  uint32_t m_cost = 1 << 16;  // 64 MiB memory cost 64 MiB 内存消耗
+  uint32_t parallelism = 1;   // Number of threads 线程数
 
   size_t hash_size =
       argon2_encodedlen(t_cost, m_cost, parallelism, ARGON2_SALT_LEN,
                         ARGON2_HASH_LEN, Argon2_type::Argon2_id);
-  std::string encoded_hash(hash_size, '\0');
+  std::string encoded_hash(hash_size, '\0');// 创建一个足够大的字符串以保存编码后的哈希值
 
+  /*
+   * 生成 PHC 格式的自包含编码哈希字符串 $argon2id$v=19$m=65536,t=3,p=1$<salt_b64>$<hash_b64>
+   */
   int result = argon2id_hash_encoded(t_cost, m_cost, parallelism,
                                      password.c_str(), password.length(), salt,
                                      ARGON2_SALT_LEN, ARGON2_HASH_LEN,
@@ -136,6 +152,9 @@ std::string hash_password_with_argon2(const std::string& password) {
   return encoded_hash;
 }
 
+/*
+ * @brief 密码验证
+ */
 bool verify_password_with_argon2(const std::string& password,
                                  const std::string& hash) {
   // Format: $argon2id$v=19$m=65536,t=3,p=1$<salt>$<hash>
@@ -146,33 +165,40 @@ bool verify_password_with_argon2(const std::string& password,
   return result == ARGON2_OK;
 }
 
+// 登录身份
 struct LoginCredentials {
-  std::string username;
-  std::string password;
+  std::string username;       // 用户名
+  std::string password;       // 密码
 };
 
+// 登录响应
 struct CredentialsResponse {
-  std::string status;
-  std::string token;
-  std::string refresh_token;
-  int user_id;
-  std::string username;
+  std::string status;         // 状态
+  std::string token;          // 令牌
+  std::string refresh_token;  // 刷新令牌
+  int user_id;                // 用户ID
+  std::string username;       // 用户名
 };
 
+// 刷新令牌请求
 struct RefreshRequest {
-  std::string refresh_token;
+  std::string refresh_token;  // 刷新令牌
 };
 
+// 注册请求
 struct RegisterRequest {
-  std::string username;
-  std::string email;
-  std::string password;
+  std::string username;       // 用户名
+  std::string email;          // 邮箱
+  std::string password;       // 密码
 };
 
+/*
+ * @brief 登录
+ */
 drogon::Task<> Authentication::login(
     const drogon::HttpRequestPtr req,
     std::function<void(const drogon::HttpResponsePtr&)> callback) {
-  auto body = req->getBody();
+  auto body = req->getBody();// 获取请求体
   LoginCredentials creds;
   auto parse_error = utilities::strict_read_json(creds, body);
 
@@ -230,6 +256,7 @@ drogon::Task<> Authentication::login(
     auto expiry_time = std::chrono::system_clock::to_time_t(expiry);
 
     try {
+      // 存储会话,如果冲突则忽略
       co_await db->execSqlCoro(
           "INSERT INTO user_sessions (user_id, token, refresh_token, "
           "expires_at) VALUES ($1, $2, $3, to_timestamp($4)) "
@@ -269,6 +296,9 @@ drogon::Task<> Authentication::login(
   co_return;
 }
 
+/*
+ * @brief 登出
+ */
 drogon::Task<> Authentication::logout(
     const drogon::HttpRequestPtr req,
     std::function<void(const drogon::HttpResponsePtr&)> callback) {
@@ -306,7 +336,9 @@ drogon::Task<> Authentication::logout(
 
   co_return;
 }
-
+/*
+ * @brief 刷新用户的认证令牌
+ */
 drogon::Task<> Authentication::refresh(
     const drogon::HttpRequestPtr req,
     std::function<void(const drogon::HttpResponsePtr&)> callback) {
@@ -343,7 +375,7 @@ drogon::Task<> Authentication::refresh(
     auto expiry_str = row["expires_at"].as<std::string>();
 
     // Parse timestamp from PostgreSQL format (e.g., "2025-04-25 12:34:56")
-    std::chrono::system_clock::time_point expiry_time_point;
+    std::chrono::system_clock::time_point expiry_time_point; // 到期 时间
     std::istringstream ss(expiry_str);
     // std::tm tm = {};
     // ss >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
@@ -445,6 +477,9 @@ drogon::Task<> Authentication::refresh(
   co_return;
 }
 
+/*
+ * @brief Register a new user 注册新用户
+ */
 drogon::Task<> Authentication::register_user(
     const drogon::HttpRequestPtr req,
     std::function<void(const drogon::HttpResponsePtr&)> callback) {

@@ -1,4 +1,5 @@
 #include <drogon/HttpMiddleware.h>
+// 确保了 jwt-cpp 使用 JsonCpp 后端，而不是默认的 picojson 解析器。
 #ifndef JWT_DISABLE_PICOJSON
 #define JWT_DISABLE_PICOJSON
 #endif
@@ -21,13 +22,13 @@ class AuthMiddleware : public drogon::HttpCoroMiddleware<AuthMiddleware> {
   drogon::Task<drogon::HttpResponsePtr> invoke(
       const drogon::HttpRequestPtr &req,
       drogon::MiddlewareNextAwaiter &&next) override {
-    // Skip OPTIONS requests (which is used for CORS)
+    // Skip OPTIONS requests (which is used for CORS) 跳过OPTIONS请求(这是用于跨域资源共享（CORS）的。)
     if (req->getMethod() == drogon::HttpMethod::Options) {
       auto resp = co_await next;
       co_return resp;
     }
     try {
-      // Authorization header with Bearer prefix
+      // Authorization header with Bearer prefix 许可头前缀
       const std::string &auth_header = req->getHeader("Authorization");
 
       if (auth_header.empty() || auth_header.substr(0, 7) != "Bearer ") {
@@ -42,13 +43,13 @@ class AuthMiddleware : public drogon::HttpCoroMiddleware<AuthMiddleware> {
       using traits = jwt::traits::open_source_parsers_jsoncpp;
       auto decoded = jwt::decode<traits>(token);
 
-      // Verify signature and expiration
+      // Verify signature and expiration 验证签名和过期
       auto verifier =
           jwt::verify<traits>()
               .allow_algorithm(jwt::algorithm::hs256{config::JWT_SECRET})
               .with_issuer("buyer-app");
 
-      // Extract user ID from token and add to request attributes for later use
+      // Extract user ID from token and add to request attributes for later use 提取用户ID并添加到请求属性中以备后用
       verifier.verify(decoded);
       auto claim = decoded.get_payload_claim("user_id");
       auto payload_type = claim.get_type();
@@ -61,10 +62,10 @@ class AuthMiddleware : public drogon::HttpCoroMiddleware<AuthMiddleware> {
       else
         throw std::runtime_error("invalid type");
 
-      // Pass user_id through request attributes
+      // Pass user_id through request attributes 通过请求属性传递user_id
       req->getAttributes()->insert("current_user_id", user_id);
 
-      // Token is valid, proceed to the next middleware/controller
+      // Token is valid, proceed to the next middleware/controller 令牌有效，继续进行下一个中间件/控制器
       auto resp = co_await next;
       co_return resp;
     } catch (const std::exception &e) {

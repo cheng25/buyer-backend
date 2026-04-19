@@ -19,7 +19,7 @@ void print_help() {
 }
 
 std::string find_config_file(const std::string& filename) {
-  // Search up to 3 parent directories up.
+  // Search up to 3 parent directories up. 搜索最多3个父目录
   const std::array<std::string, 4> possible_paths = {
       filename, "../" + filename, "../../" + filename, "../../../" + filename};
 
@@ -30,7 +30,7 @@ std::string find_config_file(const std::string& filename) {
     }
   }
 
-  // If not found, return the original path and log a warning
+  // If not found, return the original path and log a warning 如果未找到，返回原始路径并记录警告
   std::cerr << std::format(
       "Warning: Could not find {} in any of the expected locations.", filename);
   std::cerr << std::format("Will try with {} directly.", filename);
@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
   bool test_mode = false;
   std::string config;
 
-  // Parse command line arguments
+  // Parse command line arguments 处理命令行参数
   for (int i = 1; i < argc; i++) {
     std::string arg = argv[i];
     if (arg == "--test" || arg == "-t") {
@@ -63,7 +63,7 @@ int main(int argc, char* argv[]) {
 
   // Set HTTP listener address and port
   drogon::app().addListener("0.0.0.0", 5555);
-  // Load config file
+  // Load config file and set up services 加载配置文件并设置服务
   try {
     if (test_mode) {
       std::string test_config_path = find_config_file("test_config.json");
@@ -72,11 +72,11 @@ int main(int argc, char* argv[]) {
               .c_str());
       drogon::app().loadConfigFile(test_config_path);
     } else if (!config.empty()) {
-      // Use user-specified config file
+      // Use user-specified config file 使用用户指定的配置文件
       std::puts(std::format("Loading configuration from: {}", config).c_str());
       drogon::app().loadConfigFile(config);
     } else {
-      // Use default config file
+      // Use default config file 使用默认配置文件
       std::string default_config_path = find_config_file("config.json");
       std::puts(std::format("Loading default configuration from: {}",
                             default_config_path)
@@ -104,7 +104,7 @@ int main(int argc, char* argv[]) {
     });
   }
 
-  // Create buckets
+  // Create buckets for media files 创建媒体文件桶
   drogon::app().getLoop()->runInLoop([]() {
     drogon::sync_wait([]() -> drogon::Task<void> {
       bool bucket_created = co_await ServiceManager::get_instance()
@@ -121,6 +121,6 @@ int main(int argc, char* argv[]) {
 
   drogon::app().run();
 
-  // Cleanup on shutdown
+  // Cleanup on shutdown 关闭时清理
   std::atexit([]() { ServiceManager::get_instance().shutdown(); });
 }

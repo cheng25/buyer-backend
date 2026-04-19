@@ -149,7 +149,8 @@ class ConnectionManager {
 
     auto it = connections_.find(conn_id);
     if (it != connections_.end() && !it->second.empty()) {
-      connections_[conn_id].remove(conn);
+      //connections_[conn_id].remove(conn); // 第2次查找（冗余！）
+      it->second.remove(conn); // 直接使用已找到的迭代器
     }
   }
   void subscribe(const std::string &topic, const std::string conn_id) {
@@ -208,9 +209,12 @@ class ConnectionManager {
   }
 
  private:
+  // <user_id, <connection>>
   ankerl::unordered_dense::map<std::string,
                                std::list<drogon::WebSocketConnectionPtr>>
       connections_;
+
+  //<topic,<user_id>>
   ankerl::unordered_dense::map<std::string,
                                ankerl::unordered_dense::set<std::string>>
       subscribers_;

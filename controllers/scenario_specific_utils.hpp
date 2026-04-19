@@ -1,6 +1,8 @@
 #ifndef SCENARIO_SPECIFIC_UTILS_HPP
 #define SCENARIO_SPECIFIC_UTILS_HPP
-
+/*
+ * @ brief Scenario specific utilities 场景特定工具集
+ */
 #include <drogon/drogon.h>
 #include <drogon/orm/DbClient.h>
 
@@ -19,14 +21,34 @@
  * media table prefix - "prefix" e.g. offer, post, message
  *
  */
+/**
+ * @note
+ * 媒体数据库表具有以下结构：
+ * 关于 quick_process_media_attachments 和 process_media_attachments 的假设
+ * process_media_attachments_with_response
+ * 表名 - “前缀”_media，例如 offer_media、post_media、message_media
+ * get_media_attachments 和 get_media_attachments_with_response
+ * 媒体数据库表具有以下结构：
+ * 表前缀 id - “前缀”_id，例如 offer_id、post_id、message_id
+ * 表名 - “前缀”_media，例如 offer_media、post_media、message_media
+ * 媒体表前缀 - “前缀” ，例如 offer、post、message* 表前缀 id - “前缀”_id，例如 offer_id、post_id、message_id
+ * 媒体表前缀 - “前缀” ，例如 offer、post、message
+ */
 
 /**
- * @brief Naive processing of available media.
- * It runs using an existing db transaction.
+ * @brief Naive processing of available media. 尽力而为的处理可用媒体链接，容忍失败
+ * It runs using an existing db transaction. 使用现有 db 事务运行
  * Processing involves checks for validity of object key making necessary
  * media attachment inserts.
+ * 处理过程包括对对象键的有效性进行检查，并进行必要的介质附件插入操作
  * @return boolean. false means there was an error,
  * true if processing is successful even if it didn't process all.
+ * 布尔值“false”表示存在错误，而“true”则表示即使没有完全处理完成，但处理过程也是成功的。
+ * @param object_keys 对象密钥
+ * @param transaction 数据库事务对象(需要调用方的事务)
+ * @param current_user_id 当前用户ID
+ * @param media_table_prefix 媒体表前缀
+ * @param media_table_prefix_id 媒体表前缀ID
  */
 inline drogon::Task<bool> quick_process_media_attachments(
     std::vector<std::string>&& object_keys,
@@ -47,6 +69,13 @@ inline drogon::Task<bool> quick_process_media_attachments(
                                 ? info.content_type
                                 : "application/octet-stream";
 
+    /*
+     * 插入媒体数据，插入成功则返回媒体ID
+     * 存储键冲突时，将更新文件名、MIME 类型和文件大小
+     * EXCLUDED 是一个伪表（pseudo-table），仅在 INSERT ... ON CONFLICT ... DO UPDATE
+     * 语句中可用。它代表原本打算插入但因冲突而未能插入的那行数据。
+     * 使用 EXCLUDED 引用的值（即原本要插入的 $3, $4, $5）来更新 file_name, mime_type, size
+     */
     auto media_result = co_await transaction->execSqlCoro(
         "INSERT INTO media (uploader_id, storage_key, file_name, "
         "mime_type, size) "
@@ -63,7 +92,7 @@ inline drogon::Task<bool> quick_process_media_attachments(
       std::string query =
           std::format("INSERT INTO {}_media ({}_id, media_id) VALUES ($1, $2)",
                       media_table_prefix, media_table_prefix);
-      // Link media to particular table
+      // Link media to particular table 链接媒体到特定的表
       co_await transaction->execSqlCoro(query, media_table_prefix_id, media_id);
     }
   }
@@ -72,12 +101,22 @@ inline drogon::Task<bool> quick_process_media_attachments(
 
 /**
  * @brief Full processing of available media, returning processed media.
+ * 完整处理可用媒体，返回处理后的媒体。
  * It runs using an existing db transaction.
+ * 它通过现有的数据库事务运行。(需要调用方的事务)
  * Processing involves checks for validity of object key making necessary
  * media attachment inserts.
+ * 处理涉及对对象密钥的有效性检查并进行必要的媒体附件插入
  * @return std::vector<MediaQuickInfo> containing the fetched media
  * if successful or an error string.
+ * 返回处理后的媒体(严格处理并进行错误传播)。
  * @note Parameters passed by value/moved to avoid dangling references.
+ * 参数通过值传递/移动以避免悬空引用
+ * @param object_keys 媒体对象密钥
+ * @param transaction 数据库事务对象(需要调用方事务)
+ * @param current_user_id 当前用户ID(需要调用方的用户ID)
+ * @param media_table_prefix 媒体表前缀
+ * @param media_table_prefix_id 媒体表前缀ID
  */
 inline drogon::Task<std::expected<std::vector<MediaQuickInfo>, std::string>>
 process_media_attachments(
@@ -166,11 +205,23 @@ process_media_attachments(
 
 /**
  * @brief Full processing of available media and continues the response.
+ * 完整处理可用媒体并继续响应。
  * It runs using an existing db transaction.
+ * 它是在现有的数据库事务框架下运行的。
  * It checks for validity of object key, does necessary media attachment
  * inserts and return a response to client.
+ *它会检查对象键的有效性，并进行必要的媒体附件操作进行插入操作并向客户端返回响应。
  * @note Parameters passed by value/moved to avoid dangling references.
+ * 参数通过值传递/移动以避免悬空引用。
  * This is more efficient for processing only operations.
+ * 优化处理操作，避免重复代码。
+ * @param callback 回调函数，用于返回响应。
+ * @param object_keys 媒体对象密钥
+ * @param transaction 数据库事务对象(需要调用方事务)
+ * @param current_user_id 当前用户ID(需要调用方的用户ID)
+ * @param media_table_prefix 媒体表前缀
+ * @param media_table_prefix_id 媒体表前缀ID
+ * 	端到端：处理 → 部分失败时回滚 → 响应
  */
 inline drogon::Task<> process_media_attachments_with_response(
     std::function<void(const drogon::HttpResponsePtr&)> callback,
@@ -266,11 +317,16 @@ inline drogon::Task<> process_media_attachments_with_response(
 }
 
 /**
- * @brief Fetches available media.
- * It runs using an existing db transaction.
+ * @brief Fetches available media. 获取可用媒体
+ * It runs using an existing db transaction. 它使用现有的数据库事务运行。
  * @return std::vector<MediaQuickInfo> containing the fetched media
  * if successful or an error string.
+ * 返回一个包含已获取媒体信息的std::vector<MediaQuickInfo>，如果成功或错误字符串。
  * @note Parameters passed by value to avoid dangling references.
+ * 参数通过值传递，避免悬空引用。
+ * @param media_table_prefix 媒体表前缀
+ * @param media_table_prefix_id 媒体表前缀ID
+ *  用于控制器组装的可组合获取
  */
 inline drogon::Task<std::expected<std::vector<MediaQuickInfo>, std::string>>
 get_media_attachments(std::string media_table_prefix,
@@ -330,11 +386,17 @@ get_media_attachments(std::string media_table_prefix,
 }
 
 /**
- * @brief Fetches available media and continues the response.
- * It runs using an existing db transaction.
+ * @brief Fetches available media and continues the response. 获取可用媒体并继续响应。
+ * It runs using an existing db transaction. 它使用现有的数据库事务运行。
  * @return std::vector<MediaQuickInfo> containing the fetched media
  * if successful or an error string.
+ * 返回一个包含已获取媒体信息的std::vector<MediaQuickInfo>，如果成功或错误字符串。
  * @note Parameters passed by value to avoid dangling references.
+ * 参数通过值传递，避免悬空引用。
+ * @param callback 回调函数，用于返回响应。
+ * @param media_table_prefix 媒体表前缀
+ * @param media_table_prefix_id 媒体表前缀ID
+ * 用于简单 GET 端点的直接响应
  */
 inline drogon::Task<> get_media_attachments_with_response(
     std::function<void(const drogon::HttpResponsePtr&)> callback,

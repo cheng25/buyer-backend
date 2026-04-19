@@ -9,13 +9,14 @@
 #include <memory>
 #include <string>
 
+// 媒体信息
 struct MediaInfo {
-  std::string object_key;
-  std::string content_type;
-  long long content_length = 0;
-  std::string last_modified;
-  std::string etag;
-  std::unordered_map<std::string, std::string> custom_metadata;
+  std::string object_key;           // 媒体名
+  std::string content_type;         // 媒体类型
+  long long content_length = 0;     // 媒体长度
+  std::string last_modified;        // 最后修改时间
+  std::string etag;                 // 媒体标签
+  std::unordered_map<std::string, std::string> custom_metadata;  // 自定义元数据
 };
 
 class S3Service {
