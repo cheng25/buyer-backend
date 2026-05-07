@@ -45,13 +45,16 @@ class Community : public drogon::HttpController<Community> {
                 "CorsMiddleware", "AuthMiddleware");
   METHOD_LIST_END
 
+  // 所有帖子的分页信息流, 包含帖子信息、用户信息、订阅数、当前用户是否已订阅、媒体附件
   static drogon::Task<> get_posts(
       const drogon::HttpRequestPtr req,
       std::function<void(const drogon::HttpResponsePtr&)> callback);
+  //根据 帖子ID 获取单个帖子
   static drogon::Task<> get_post_by_id(
       drogon::HttpRequestPtr req,
       std::function<void(const drogon::HttpResponsePtr&)> callback,
       std::string id);
+  // 按标签、地点和状态对帖子进行筛选
   static drogon::Task<> filter_posts(
       drogon::HttpRequestPtr req,
       std::function<void(const drogon::HttpResponsePtr&)> callback);

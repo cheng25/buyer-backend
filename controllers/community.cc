@@ -3,15 +3,15 @@
 #include <drogon/HttpController.h>
 #include <drogon/HttpResponse.h>
 #include <drogon/HttpTypes.h>
-#include <drogon/orm/Criteria.h>
+//#include <drogon/orm/Criteria.h>
 #include <drogon/orm/DbClient.h>
 #include <drogon/orm/Exception.h>
 #include <drogon/orm/Field.h>
-#include <drogon/orm/Mapper.h>
+//#include <drogon/orm/Mapper.h>
 #include <drogon/orm/Result.h>
-#include <drogon/orm/ResultIterator.h>
+//#include <drogon/orm/ResultIterator.h>
 #include <drogon/orm/Row.h>
-#include <drogon/orm/SqlBinder.h>
+//#include <drogon/orm/SqlBinder.h>
 
 #include <algorithm>
 #include <format>
@@ -41,20 +41,21 @@ using drogon::orm::DrogonDbException;
 
 using api::v1::Community;
 
+// 社区帖子
 struct CommunityPost {
-  int id;
-  int user_id;
-  std::string username;
-  std::string content;
-  std::string created_at;
-  std::vector<std::string> tags;
-  std::string location;
-  bool is_product_request;
-  std::string request_status;
-  std::string price_range;
-  int subscription_count;
-  bool is_subscribed;
-  std::optional<std::vector<MediaQuickInfo>> media;
+  int id;                         // 帖子ID posts.id
+  int user_id;                  // 用户ID posts.user_id
+  std::string username;         // 用户名 users.username
+  std::string content;          // 帖子内容 posts.content
+  std::string created_at;       // 创建时间 posts.created_at
+  std::vector<std::string> tags;  // 标签 posts.tags
+  std::string location;           // 位置 posts.location
+  bool is_product_request;        // 是否是产品请求 posts.is_product_request
+  std::string request_status;     // 请求状态 posts.request_status
+  std::string price_range;        // 价格范围 posts.price_range
+  int subscription_count;       // 订阅数 SELECT COUNT(*) FROM post_subscriptions WHERE post_id = posts.id
+  bool is_subscribed;            // 是否已订阅 EXISTS(SELECT 1 FROM post_subscriptions WHERE post_id = posts.id AND user_id = 输入user_id)
+  std::optional<std::vector<MediaQuickInfo>> media; // 媒体附件
 };
 
 struct CreatePostRequest {
@@ -80,12 +81,13 @@ struct UpdatePostRequest {
   std::optional<std::vector<std::string>> media;
 };
 
+// 帖子筛选请求
 struct FilterPostsRequest {
-  std::optional<std::string> tags;
-  std::optional<std::string> location;
-  std::optional<std::string> status;
-  std::optional<bool> is_product_request;
-  std::optional<int> page;
+  std::optional<std::string> tags;          // 标签
+  std::optional<std::string> location;      // 位置
+  std::optional<std::string> status;        // 状态
+  std::optional<bool> is_product_request;   // 是否是产品请求
+  std::optional<int> page;                  // 页码
 };
 
 struct Tag {
@@ -93,12 +95,13 @@ struct Tag {
   int count;
 };
 
+// 所有帖子的分页信息流, 包含帖子信息、用户信息、订阅数、当前用户是否已订阅、媒体附件
 Task<> Community::get_posts(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback) {
-  auto db = app().getDbClient();
+  const auto db = app().getDbClient();
 
   int page = 1;
-  auto page_param = req->getParameter("page");
+  const auto page_param = req->getParameter("page");
   if (!page_param.empty()) {
     auto page_optional = convert::string_to_int(page_param);
     if (page_optional && page_optional.value() > 0) {
@@ -106,14 +109,17 @@ Task<> Community::get_posts(
     }
   }
 
-  const std::size_t page_size = 10;
-  const std::size_t offset = (page - 1) * page_size;
+  constexpr std::size_t page_size = 10;// 每页10条
+  const std::size_t offset = (page - 1) * page_size;  // 获取的起始位置
 
-  std::string current_user_id =
+  const std::string current_user_id =
       req->getAttributes()->get<std::string>("current_user_id");
 
   try {
-    auto result = co_await db->execSqlCoro(
+    /*
+     *JOIN 等同于 INNER JOIN（内连接）只返回两张表中都有匹配的记录：帖子必须有对应的用户
+     */
+    const auto result = co_await db->execSqlCoro(
         "SELECT p.*, u.username, "
         "(SELECT COUNT(*) FROM post_subscriptions WHERE post_id = p.id) AS "
         "subscription_count, "
@@ -126,7 +132,7 @@ Task<> Community::get_posts(
 
     std::vector<CommunityPost> posts_list;
     for (const auto& row : result) {
-      int post_id = row["id"].as<int>();
+      const int post_id = row["id"].as<int>();
       auto media_attachments = co_await get_media_attachments("post", post_id);
 
       posts_list.push_back(
@@ -311,12 +317,12 @@ Task<> Community::create_post(
   co_return;
 }
 
-// Get a single post by ID
+// Get a single post by ID//根据 帖子ID 获取单个帖子
 Task<> Community::get_post_by_id(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback,
     std::string id) {
   auto db = app().getDbClient();
-  std::string current_user_id =
+  auto current_user_id =
       req->getAttributes()->get<std::string>("current_user_id");
 
   auto post_id_optional = convert::string_to_int(id);
@@ -571,16 +577,18 @@ Task<> Community::update_post(
   co_return;
 }
 
-// Filter posts by tags, location, and status
+// Filter posts by tags, location, and status// 按标签、地点和状态对帖子进行筛选
 Task<> Community::filter_posts(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback) {
   auto db = app().getDbClient();
-  std::string current_user_id =
+  auto current_user_id =
       req->getAttributes()->get<std::string>("current_user_id");
 
   FilterPostsRequest filter_req;
   auto parse_error = utilities::strict_read_json(filter_req, req->getBody());
-
+  if (parse_error) {
+    LOG_WARN << "Error parsing request body: " << parse_error.ec();
+  }
   filter_req.tags = req->getParameter("tags");
   filter_req.location = req->getParameter("location");
   filter_req.status = req->getParameter("status");
@@ -598,7 +606,7 @@ Task<> Community::filter_posts(
   }
 
   std::size_t page = filter_req.page.value_or(1);
-  const std::size_t page_size = 10;
+  constexpr std::size_t page_size = 10;
   const std::size_t offset = (page - 1) * page_size;
 
   std::vector<std::string> tags;
@@ -613,13 +621,16 @@ Task<> Community::filter_posts(
       }
       tags_str.erase(0, pos + 1);
     }
+    // Add the last tag if it exists如果存在最后的标签，则添加该标签
     if (!tags_str.empty()) {
       tags.push_back(tags_str);
     }
   }
 
   // Build a query with all possible parameters and use default values
+  // 构建一个包含所有可能参数的查询，并使用默认值。
   // For tags, we'll modify the query to handle them as a union (OR)
+  // 对于标签，我们将修改查询语句，将其视为一个并集（“或”）来处理。
   std::string query =
       "SELECT p.*, u.username, "
       "(SELECT COUNT(*) FROM post_subscriptions WHERE post_id = p.id) AS "

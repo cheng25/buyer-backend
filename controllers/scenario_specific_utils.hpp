@@ -333,6 +333,9 @@ get_media_attachments(std::string media_table_prefix,
                       int media_table_prefix_id) {
   auto db = drogon::app().getDbClient();
   try {
+    /*
+     * 内连接：xxx_media 与 media 共同交集
+     */
     auto media_result = co_await db->execSqlCoro(
         std::format(
             "SELECT med.id, med.storage_key, med.file_name, med.mime_type, "
