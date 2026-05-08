@@ -8,6 +8,9 @@ services:
       POSTGRES_DB: agentbackend
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: mypassword
+      # 添加下面这行来避免 locale 警告
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
     ports:
       - "5432:5432"
     volumes:

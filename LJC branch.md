@@ -23,6 +23,10 @@ sudo docker pull minio/minio:latest
 # 3. 确保端口不被占用 5432、9000、9001
 sudo netstat -tulnp | grep -E '5432|9000|9001'
 
+# 3.1 修改权限
+sudo chmod -R 755 ./migrations
+sudo chmod -R 755 ./seeds
+
 #4. 启动容器
 sudo docker compose up -d
 # 或者

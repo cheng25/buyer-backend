@@ -110,7 +110,7 @@ Task<> Community::get_posts(
   }
 
   constexpr std::size_t page_size = 10;// 每页10条
-  const std::size_t offset = (page - 1) * page_size;  // 获取的起始位置
+  const std::size_t offset = (page - 1) * page_size;  // 偏移
 
   const std::string current_user_id =
       req->getAttributes()->get<std::string>("current_user_id");
