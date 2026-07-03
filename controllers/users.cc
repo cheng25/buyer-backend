@@ -1,3 +1,8 @@
+/**
+ * @file users.cc
+ * @brief 用户控制器实现文件
+ * @details 实现用户列表查询功能，支持分页查询，按用户名排序。
+ */
 #include "users.hpp"
 
 #include <drogon/HttpResponse.h>
@@ -23,22 +28,34 @@ using drogon::HttpResponse;
 
 using api::v1::Users;
 
+/**
+ * @struct UserInfo
+ * @brief 用户信息数据结构
+ * @details 包含用户的基本信息，包括用户ID、用户名、邮箱和创建时间。
+ */
 struct UserInfo {
-  int id;
-  std::string username;
-  std::string email;
-  std::string created_at;
+  int id;                           // 用户ID
+  std::string username;             // 用户名
+  std::string email;                // 邮箱地址
+  std::string created_at;           // 创建时间
 };
 
+/**
+ * @brief 获取用户列表
+ * @details 查询用户列表，支持分页参数（page和pageSize），按用户名排序。
+ * @param req HTTP请求指针
+ * @param callback HTTP响应回调函数
+ * @return Task<> 异步任务
+ */
 drogon::Task<> Users::get_users(
     drogon::HttpRequestPtr req,
     std::function<void(const drogon::HttpResponsePtr&)> callback) {
   auto db = app().getDbClient();
 
-  std::size_t page = 1;
-  std::size_t pageSize = 20;
+  std::size_t page = 1;             // 当前页码，默认为1
+  std::size_t pageSize = 20;        // 每页大小，默认为20
 
-  // Parse pagination parameters safely
+  // 安全解析分页参数
   if (!req->getParameter("page").empty()) {
     page = std::max(
         1, convert::string_to_int(req->getParameter("page")).value_or(1));

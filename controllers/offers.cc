@@ -1,3 +1,8 @@
+/**
+ * @file offers.cc
+ * @brief 报价控制器实现文件
+ * @details 实现报价的创建、查询、更新、接受和拒绝等功能，支持媒体附件处理和实时通知推送。
+ */
 #include "offers.hpp"
 
 #include <drogon/HttpResponse.h>
@@ -34,114 +39,166 @@ using drogon::Task;
 using drogon::orm::DrogonDbException;
 using drogon::orm::Result;
 using drogon::orm::Transaction;
+/**
+ * @struct OfferInfo
+ * @brief 报价信息数据结构
+ * @details 包含报价基本信息、用户信息、媒体附件和权限标识。
+ */
 struct OfferInfo {
-  int id;
-  int post_id;
-  int user_id;
-  std::string username;
-  std::string title;
-  std::string description;
-  double price;
-  double original_price;
-  bool is_public;
-  std::string status;
-  std::string created_at;
-  std::string updated_at;
-  bool is_post_owner;
-  std::vector<MediaQuickInfo> media;
+  int id;                           // 报价ID
+  int post_id;                      // 帖子ID
+  int user_id;                      // 用户ID
+  std::string username;             // 用户名
+  std::string title;                // 报价标题
+  std::string description;          // 报价描述
+  double price;                     // 当前价格
+  double original_price;            // 原始价格
+  bool is_public;                   // 是否公开
+  std::string status;               // 报价状态
+  std::string created_at;           // 创建时间
+  std::string updated_at;           // 更新时间
+  bool is_post_owner;               // 是否是帖子所有者
+  std::vector<MediaQuickInfo> media;  // 媒体附件
 };
 
+/**
+ * @struct CreateOfferRequest
+ * @brief 创建报价请求数据结构
+ * @details 包含创建报价所需的标题、描述、价格和可选的媒体附件。
+ */
 struct CreateOfferRequest {
-  std::string title;
-  std::string description;
-  double price;
-  std::optional<bool> is_public{true};
-  std::optional<std::vector<std::string>> media;  // Object keys
+  std::string title;                        // 报价标题
+  std::string description;                  // 报价描述
+  double price;                             // 报价价格
+  std::optional<bool> is_public{true};      // 是否公开，默认true
+  std::optional<std::vector<std::string>> media;  // 媒体附件对象键
 };
 
+/**
+ * @struct CreateOfferResponse
+ * @brief 创建报价响应数据结构
+ * @details 返回创建状态和报价ID。
+ */
 struct CreateOfferResponse {
-  std::string status;
-  int offer_id;
+  std::string status;               // 创建状态
+  int offer_id;                     // 新创建的报价ID
 };
 
+/**
+ * @struct GetOfferResponse
+ * @brief 获取报价详情响应数据结构
+ * @details 返回报价完整信息，包括权限标识。
+ */
 struct GetOfferResponse {
-  int id;
-  int post_id;
-  int user_id;
-  std::string username;
-  std::string title;
-  std::string description;
-  double price;
-  double original_price;
-  bool is_public;
-  std::string status;
-  std::string created_at;
-  std::string updated_at;
-  bool is_owner;
-  bool is_post_owner;
-  std::vector<MediaQuickInfo> media;
+  int id;                           // 报价ID
+  int post_id;                      // 帖子ID
+  int user_id;                      // 用户ID
+  std::string username;             // 用户名
+  std::string title;                // 报价标题
+  std::string description;          // 报价描述
+  double price;                     // 当前价格
+  double original_price;            // 原始价格
+  bool is_public;                   // 是否公开
+  std::string status;               // 报价状态
+  std::string created_at;           // 创建时间
+  std::string updated_at;           // 更新时间
+  bool is_owner;                    // 当前用户是否是报价创建者
+  bool is_post_owner;               // 当前用户是否是帖子所有者
+  std::vector<MediaQuickInfo> media;  // 媒体附件
 };
 
+/**
+ * @struct UpdateOfferRequest
+ * @brief 更新报价请求数据结构
+ * @details 包含报价更新的可选字段，支持部分字段更新。
+ */
 struct UpdateOfferRequest {
-  std::optional<std::string> title;
-  std::optional<std::string> description;
-  std::optional<double> price;
-  std::optional<bool> is_public;
-  std::optional<std::vector<std::string>> media;
+  std::optional<std::string> title;         // 报价标题（可选）
+  std::optional<std::string> description;   // 报价描述（可选）
+  std::optional<double> price;              // 报价价格（可选）
+  std::optional<bool> is_public;            // 是否公开（可选）
+  std::optional<std::vector<std::string>> media;  // 媒体附件（可选）
 };
 
+/**
+ * @struct UpdateOfferResponse
+ * @brief 更新报价响应数据结构
+ * @details 返回更新状态、消息、报价ID和处理后的媒体附件。
+ */
 struct UpdateOfferResponse {
-  std::string status;
-  std::string message;
-  std::string offer_id;
-  std::optional<std::vector<MediaQuickInfo>> media;
+  std::string status;               // 更新状态
+  std::string message;              // 响应消息
+  std::string offer_id;             // 报价ID
+  std::optional<std::vector<MediaQuickInfo>> media;  // 媒体附件（可选）
 };
 
+/**
+ * @struct MyOfferInfo
+ * @brief 用户发出的报价信息数据结构
+ * @details 包含用户发出的报价及其关联帖子的信息。
+ */
 struct MyOfferInfo {
-  int id;
-  int post_id;
-  std::string post_content;
-  std::string post_owner_username;
-  std::string title;
-  std::string description;
-  double price;
-  double original_price;
-  bool is_public;
-  std::string status;
-  std::string created_at;
-  std::string updated_at;
-  std::vector<MediaQuickInfo> media;
+  int id;                           // 报价ID
+  int post_id;                      // 帖子ID
+  std::string post_content;         // 帖子内容
+  std::string post_owner_username;  // 帖子所有者用户名
+  std::string title;                // 报价标题
+  std::string description;          // 报价描述
+  double price;                     // 当前价格
+  double original_price;            // 原始价格
+  bool is_public;                   // 是否公开
+  std::string status;               // 报价状态
+  std::string created_at;           // 创建时间
+  std::string updated_at;           // 更新时间
+  std::vector<MediaQuickInfo> media;  // 媒体附件
 };
 
+/**
+ * @struct ReceivedOfferInfo
+ * @brief 用户收到的报价信息数据结构
+ * @details 包含用户帖子收到的报价及其报价者的信息。
+ */
 struct ReceivedOfferInfo {
-  int id;
-  int post_id;
-  std::string post_content;
-  int user_id;
-  std::string offer_username;
-  std::string title;
-  std::string description;
-  double price;
-  double original_price;
-  bool is_public;
-  std::string status;
-  std::string created_at;
-  std::string updated_at;
-  std::vector<MediaQuickInfo> media;
+  int id;                           // 报价ID
+  int post_id;                      // 帖子ID
+  std::string post_content;         // 帖子内容
+  int user_id;                      // 报价者用户ID
+  std::string offer_username;       // 报价者用户名
+  std::string title;                // 报价标题
+  std::string description;          // 报价描述
+  double price;                     // 当前价格
+  double original_price;            // 原始价格
+  bool is_public;                   // 是否公开
+  std::string status;               // 报价状态
+  std::string created_at;           // 创建时间
+  std::string updated_at;           // 更新时间
+  std::vector<MediaQuickInfo> media;  // 媒体附件
 };
 
+/**
+ * @struct NotificationInfo
+ * @brief 报价通知信息数据结构
+ * @details 包含报价通知的完整信息，包括报价详情和阅读状态。
+ */
 struct NotificationInfo {
-  int id;
-  int offer_id;
-  bool is_read;
-  std::string created_at;
-  std::string offer_title;
-  std::string offer_status;
-  std::string offer_username;
-  std::string post_content;
+  int id;                           // 通知ID
+  int offer_id;                     // 报价ID
+  bool is_read;                     // 是否已读
+  std::string created_at;           // 创建时间
+  std::string offer_title;          // 报价标题
+  std::string offer_status;         // 报价状态
+  std::string offer_username;       // 报价者用户名
+  std::string post_content;         // 帖子内容
 };
 
-// Get all offers for a post
+/**
+ * @brief 获取帖子的所有报价
+ * @details 根据帖子ID查询所有相关报价，帖子所有者可以查看所有报价（包括私有报价），其他用户只能查看公开报价和自己的报价。
+ * @param req HTTP请求指针
+ * @param callback HTTP响应回调函数
+ * @param post_id 帖子ID
+ * @return Task<> 异步任务
+ */
 Task<> Offers::get_offers_for_post(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback,
     std::string post_id) {
@@ -235,7 +292,14 @@ Task<> Offers::get_offers_for_post(
   co_return;
 }
 
-// Create a new offer for a post
+/**
+ * @brief 创建新报价
+ * @details 为指定帖子创建新的报价，支持媒体附件上传和实时通知推送。用户不能对自己的帖子报价。
+ * @param req HTTP请求指针
+ * @param callback HTTP响应回调函数
+ * @param post_id 帖子ID
+ * @return Task<> 异步任务
+ */
 Task<> Offers::create_offer(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback,
     std::string post_id) {
@@ -405,7 +469,14 @@ Task<> Offers::create_offer(
   co_return;
 }
 
-// Get a specific offer
+/**
+ * @brief 获取指定报价详情
+ * @details 根据报价ID查询报价详情，验证用户查看权限（报价创建者、帖子所有者或公开报价）。
+ * @param req HTTP请求指针
+ * @param callback HTTP响应回调函数
+ * @param id 报价ID
+ * @return Task<> 异步任务
+ */
 Task<> Offers::get_offer(HttpRequestPtr req,
                          std::function<void(const HttpResponsePtr&)> callback,
                          std::string id) {
@@ -497,7 +568,14 @@ Task<> Offers::get_offer(HttpRequestPtr req,
   co_return;
 }
 
-// Update an offer
+/**
+ * @brief 更新报价
+ * @details 更新指定报价的信息，支持部分字段更新。只有报价创建者可以更新报价，且报价状态必须为pending。
+ * @param req HTTP请求指针
+ * @param callback HTTP响应回调函数
+ * @param id 报价ID
+ * @return Task<> 异步任务
+ */
 Task<> Offers::update_offer(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback,
     std::string id) {
@@ -680,8 +758,14 @@ Task<> Offers::update_offer(
   co_return;
 }
 
-// Helper function to update message metadata when an offer or negotiation
-// status changes
+/**
+ * @brief 更新消息元数据
+ * @details 当报价或协商状态变更时，更新相关消息的元数据，将新状态写入消息的metadata字段。
+ * @param transaction 数据库事务指针
+ * @param id 报价或协商的ID
+ * @param new_status 新状态
+ * @param is_negotiation 是否为协商（默认为false，表示报价）
+ */
 void update_message_metadata(std::shared_ptr<Transaction> transaction,
                              std::string id, std::string new_status,
                              bool is_negotiation = false) {
@@ -728,7 +812,14 @@ void update_message_metadata(std::shared_ptr<Transaction> transaction,
   }
 }
 
-// Accept an offer
+/**
+ * @brief 接受报价
+ * @details 帖子所有者接受指定报价，同时拒绝其他所有pending状态的报价和价格协商。更新帖子状态为fulfilled。
+ * @param req HTTP请求指针
+ * @param callback HTTP响应回调函数
+ * @param id 报价ID
+ * @return Task<> 异步任务
+ */
 Task<> Offers::accept_offer(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback,
     std::string id) {
@@ -963,7 +1054,14 @@ Task<> Offers::accept_offer(
   co_return;
 }
 
-// Accept a counter offer (for offer creators)
+/**
+ * @brief 接受还价（报价创建者）
+ * @details 报价创建者接受对方的还价，使用最新协商价格更新报价。同时拒绝其他所有pending状态的报价和价格协商。
+ * @param req HTTP请求指针
+ * @param callback HTTP响应回调函数
+ * @param id 报价ID
+ * @return Task<> 异步任务
+ */
 Task<> Offers::accept_counter_offer(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback,
     std::string id) {
@@ -1165,7 +1263,14 @@ Task<> Offers::accept_counter_offer(
   co_return;
 }
 
-// Reject an offer
+/**
+ * @brief 拒绝报价
+ * @details 帖子所有者拒绝指定报价，更新报价状态为rejected。只有pending状态的报价可以被拒绝。
+ * @param req HTTP请求指针
+ * @param callback HTTP响应回调函数
+ * @param id 报价ID
+ * @return Task<> 异步任务
+ */
 Task<> Offers::reject_offer(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback,
     std::string id) {
@@ -1249,7 +1354,13 @@ Task<> Offers::reject_offer(
   co_return;
 }
 
-// Get all offers made by the current user
+/**
+ * @brief 获取当前用户发出的所有报价
+ * @details 查询当前用户创建的所有报价，包含关联帖子的内容和帖子所有者信息。
+ * @param req HTTP请求指针
+ * @param callback HTTP响应回调函数
+ * @return Task<> 异步任务
+ */
 Task<> Offers::get_my_offers(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback) {
   std::string current_user_id =
@@ -1307,7 +1418,13 @@ Task<> Offers::get_my_offers(
   co_return;
 }
 
-// Get all offers received for the current user's posts
+/**
+ * @brief 获取当前用户帖子收到的所有报价
+ * @details 查询当前用户发布的帖子收到的所有报价，包含报价者信息和帖子内容。
+ * @param req HTTP请求指针
+ * @param callback HTTP响应回调函数
+ * @return Task<> 异步任务
+ */
 Task<> Offers::get_received_offers(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback) {
   std::string current_user_id =
@@ -1365,7 +1482,13 @@ Task<> Offers::get_received_offers(
   co_return;
 }
 
-// Get notifications for the current user
+/**
+ * @brief 获取当前用户的报价通知
+ * @details 查询当前用户收到的所有报价通知，包含报价详情、阅读状态和相关帖子信息。
+ * @param req HTTP请求指针
+ * @param callback HTTP响应回调函数
+ * @return Task<> 异步任务
+ */
 Task<> Offers::get_notifications(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback) {
   std::string current_user_id =
@@ -1416,7 +1539,14 @@ Task<> Offers::get_notifications(
   co_return;
 }
 
-// Mark a notification as read
+/**
+ * @brief 将指定通知标记为已读
+ * @details 更新指定通知的阅读状态为已读，验证用户权限（必须是通知所有者）。
+ * @param req HTTP请求指针
+ * @param callback HTTP响应回调函数
+ * @param id 通知ID
+ * @return Task<> 异步任务
+ */
 Task<> Offers::mark_notification_read(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback,
     std::string id) {
@@ -1461,7 +1591,13 @@ Task<> Offers::mark_notification_read(
   co_return;
 }
 
-// Mark all notifications as read
+/**
+ * @brief 将所有通知标记为已读
+ * @details 批量更新当前用户所有未读通知的阅读状态为已读。
+ * @param req HTTP请求指针
+ * @param callback HTTP响应回调函数
+ * @return Task<> 异步任务
+ */
 Task<> Offers::mark_all_notifications_read(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback) {
   std::string current_user_id =

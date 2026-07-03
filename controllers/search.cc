@@ -1,3 +1,8 @@
+/**
+ * @file search.cc
+ * @brief 搜索控制器实现文件
+ * @details 实现全站搜索功能，支持在订单和帖子中进行模糊搜索，支持分页查询。
+ */
 #include "search.hpp"
 
 #include <drogon/HttpResponse.h>
@@ -23,36 +28,52 @@ using drogon::HttpResponsePtr;
 using drogon::orm::DrogonDbException;
 
 using api::v1::Search;
+
+/**
+ * @struct SearchResultItem
+ * @brief 搜索结果项数据结构
+ * @details 包含搜索结果的基本信息，包括结果ID、类型和详细描述。
+ */
 struct SearchResultItem {
-  int id;
-  std::string type;
-  std::string details;
+  int id;                           // 结果ID
+  std::string type;                 // 结果类型（如 Order、Post）
+  std::string details;              // 结果详细描述
 };
 
+/**
+ * @brief 执行全站搜索
+ * @details 在订单和帖子中进行模糊搜索，支持分页查询。搜索条件使用ILIKE进行大小写不敏感匹配。
+ * 如果帖子搜索失败，仍然返回订单搜索结果。
+ * @param req HTTP请求指针，包含查询参数（query、page、pageSize）
+ * @param callback HTTP响应回调函数
+ * @return Task<> 异步任务
+ */
 drogon::Task<> Search::search(
     drogon::HttpRequestPtr req,
     std::function<void(const drogon::HttpResponsePtr&)> callback) {
-  auto query = req->getParameter("query");
-  std::size_t page = 1;
-  std::size_t pageSize = 20;
+  auto query = req->getParameter("query");  // 获取搜索关键词
+  std::size_t page = 1;                     // 当前页码，默认为1
+  std::size_t pageSize = 20;                // 每页大小，默认为20
 
+  // 解析页码参数
   if (req->getParameter("page").empty() == false) {
     page = std::max(
         1, convert::string_to_int(req->getParameter("page")).value_or(1));
   }
 
+  // 解析每页大小参数，限制范围为1-100
   if (req->getParameter("pageSize").empty() == false) {
     pageSize = std::max(
         1, std::min(100, convert::string_to_int(req->getParameter("pageSize"))
                              .value_or(20)));
   }
 
-  std::size_t offset = (page - 1) * pageSize;
+  std::size_t offset = (page - 1) * pageSize;  // 计算偏移量
 
   LOG_DEBUG << "Search query received: '" << query << "', page: " << page
             << ", pageSize: " << pageSize;
 
-  // return empty results for empty query
+  // 空查询返回空结果
   if (query.empty()) {
     std::vector<SearchResultItem> empty_results = {};
     auto resp =

@@ -1,3 +1,8 @@
+/**
+ * @file offers_negotiation.cc
+ * @brief 报价协商控制器实现文件
+ * @details 实现报价协商功能，包括价格协商、产品证明请求与提交、托管交易创建等功能。
+ */
 #include <drogon/HttpController.h>
 #include <drogon/HttpResponse.h>
 #include <drogon/HttpTypes.h>
@@ -36,40 +41,73 @@ using drogon::orm::Transaction;
 
 using api::v1::Offers;
 
+/**
+ * @struct NegotiateOfferRequest
+ * @brief 协商报价请求数据结构
+ * @details 包含提议价格和可选消息。
+ */
 struct NegotiateOfferRequest {
-  double price;
-  std::optional<std::string> message;
+  double price;                     // 提议价格
+  std::optional<std::string> message;  // 协商消息（可选）
 };
 
+/**
+ * @struct NegotiateOfferResponse
+ * @brief 协商报价响应数据结构
+ * @details 返回协商状态、消息、协商ID和对话ID。
+ */
 struct NegotiateOfferResponse {
-  std::string status;
-  std::string message;
-  int negotiation_id;
-  std::string conversation_id;
+  std::string status;               // 操作状态
+  std::string message;              // 响应消息
+  int negotiation_id;               // 协商记录ID
+  std::string conversation_id;      // 对话ID
 };
 
+/**
+ * @struct NegotiationInfo
+ * @brief 协商信息数据结构
+ * @details 包含协商记录的完整信息。
+ */
 struct NegotiationInfo {
-  int id;
-  int offer_id;
-  int user_id;
-  std::string username;
-  double proposed_price;
-  std::string status;
-  std::optional<std::string> message;
-  std::string created_at;
-  std::string updated_at;
+  int id;                           // 协商记录ID
+  int offer_id;                     // 报价ID
+  int user_id;                      // 用户ID
+  std::string username;             // 用户名
+  double proposed_price;            // 提议价格
+  std::string status;               // 协商状态
+  std::optional<std::string> message;  // 协商消息（可选）
+  std::string created_at;           // 创建时间
+  std::string updated_at;           // 更新时间
 };
 
+/**
+ * @struct GetNegotiationsResponse
+ * @brief 获取协商列表响应数据结构
+ * @details 返回协商状态和协商列表。
+ */
 struct GetNegotiationsResponse {
-  std::string status;
-  std::vector<NegotiationInfo> negotiations;
+  std::string status;               // 操作状态
+  std::vector<NegotiationInfo> negotiations;  // 协商记录列表
 };
 
+/**
+ * @struct MessageMetadata
+ * @brief 消息元数据数据结构
+ * @details 包含报价ID和报价状态信息，用于消息上下文。
+ */
 struct MessageMetadata {
-  std::string offer_id;
-  std::string offer_status{"pending"};
+  std::string offer_id;             // 报价ID
+  std::string offer_status{"pending"};  // 报价状态，默认pending
 };
 
+/**
+ * @brief 创建或获取两个用户之间的对话
+ * @details 检查两个用户之间是否已存在对话，若存在则返回现有对话ID，否则创建新对话。
+ * @param user1_id 用户1的ID
+ * @param user2_id 用户2的ID
+ * @param offer_id 报价ID，用于生成对话名称
+ * @return Task协程对象，返回对话ID字符串
+ */
 // Helper function to create a conversation between two users
 Task<std::string> create_or_get_conversation(std::string user1_id,
                                              std::string user2_id,
@@ -118,6 +156,15 @@ Task<std::string> create_or_get_conversation(std::string user1_id,
   }
 }
 
+/**
+ * @brief 在事务中创建或获取两个用户之间的对话
+ * @details 在数据库事务中执行，确保对话创建与其他操作的原子性。
+ * @param transaction 数据库事务指针
+ * @param user1_id 用户1的ID
+ * @param user2_id 用户2的ID
+ * @param offer_id 报价ID，用于生成对话名称
+ * @return Task协程对象，返回对话ID字符串
+ */
 // Create/get conversations during a transaction
 Task<std::string> create_or_get_conversation_transaction(
     const std::shared_ptr<Transaction>& transaction, std::string user1_id,
@@ -211,6 +258,14 @@ void add_negotiation_message(
       negotiation_id, glz::write_json(metadata).value_or(""));
 }
 
+/**
+ * @brief 协商报价
+ * @details 用户提出新的价格进行协商，更新报价状态为进行中，创建协商记录，并在对话中添加协商消息。
+ * @param req HTTP请求指针，包含price和可选的message参数
+ * @param callback 响应回调函数
+ * @param id 报价ID字符串
+ * @return Task协程对象
+ */
 // Negotiate an offer
 Task<> Offers::negotiate_offer(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback,
@@ -385,6 +440,14 @@ Task<> Offers::negotiate_offer(
   co_return;
 }
 
+/**
+ * @brief 获取报价的协商记录
+ * @details 获取指定报价的所有价格协商记录，仅报价创建者和帖子所有者有权访问。
+ * @param req HTTP请求指针
+ * @param callback 响应回调函数
+ * @param id 报价ID字符串
+ * @return Task协程对象
+ */
 // Get negotiations for an offer
 Task<> Offers::get_negotiations(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback,
@@ -471,76 +534,140 @@ Task<> Offers::get_negotiations(
 
 // Partial implementations:
 
+/**
+ * @struct RequestProofRequest
+ * @brief 请求产品证明请求数据结构
+ * @details 包含可选的请求消息。
+ */
 struct RequestProofRequest {
-  std::optional<std::string> message;
+  std::optional<std::string> message;  // 请求消息（可选）
 };
 
+/**
+ * @struct RequestProofResponse
+ * @brief 请求产品证明响应数据结构
+ * @details 返回操作状态、消息和对话ID。
+ */
 struct RequestProofResponse {
-  std::string status;
-  std::string message;
-  std::string conversation_id;
+  std::string status;               // 操作状态
+  std::string message;              // 响应消息
+  std::string conversation_id;      // 对话ID
 };
 
+/**
+ * @struct SubmitProofRequest
+ * @brief 提交产品证明请求数据结构
+ * @details 包含证明图片URL和可选描述。
+ */
 struct SubmitProofRequest {
-  std::string image_url;
-  std::optional<std::string> description;
+  std::string image_url;            // 证明图片URL
+  std::optional<std::string> description;  // 描述（可选）
 };
 
+/**
+ * @struct SubmitProofResponse
+ * @brief 提交产品证明响应数据结构
+ * @details 返回操作状态、消息、证明ID和对话ID。
+ */
 struct SubmitProofResponse {
-  std::string status;
-  std::string message;
-  int proof_id;
-  std::string conversation_id;
+  std::string status;               // 操作状态
+  std::string message;              // 响应消息
+  int proof_id;                     // 证明记录ID
+  std::string conversation_id;      // 对话ID
 };
 
+/**
+ * @struct ProofInfo
+ * @brief 产品证明信息数据结构
+ * @details 包含产品证明记录的完整信息。
+ */
 struct ProofInfo {
-  int id;
-  int offer_id;
-  int user_id;
-  std::string username;
-  std::string image_url;
-  std::optional<std::string> description;
-  std::string status;
-  std::string created_at;
+  int id;                           // 证明记录ID
+  int offer_id;                     // 报价ID
+  int user_id;                      // 用户ID
+  std::string username;             // 用户名
+  std::string image_url;            // 证明图片URL
+  std::optional<std::string> description;  // 描述（可选）
+  std::string status;               // 证明状态
+  std::string created_at;           // 创建时间
 };
 
+/**
+ * @struct GetProofsResponse
+ * @brief 获取产品证明列表响应数据结构
+ * @details 返回操作状态和证明列表。
+ */
 struct GetProofsResponse {
-  std::string status;
-  std::vector<ProofInfo> proofs;
+  std::string status;               // 操作状态
+  std::vector<ProofInfo> proofs;    // 证明记录列表
 };
+
+/**
+ * @struct RejectProofRequest
+ * @brief 拒绝产品证明请求数据结构
+ * @details 包含拒绝原因（可选）。
+ */
 struct RejectProofRequest {
-  std::optional<std::string> reason;
+  std::optional<std::string> reason;  // 拒绝原因（可选）
 };
 
+/**
+ * @struct CreateEscrowRequest
+ * @brief 创建托管交易请求数据结构
+ * @details 包含托管金额。
+ */
 struct CreateEscrowRequest {
-  double amount;
+  double amount;                    // 托管金额
 };
 
+/**
+ * @struct CreateEscrowResponse
+ * @brief 创建托管交易响应数据结构
+ * @details 返回操作状态、消息和托管交易ID。
+ */
 struct CreateEscrowResponse {
-  std::string status;
-  std::string message;
-  int escrow_id;
+  std::string status;               // 操作状态
+  std::string message;              // 响应消息
+  int escrow_id;                    // 托管交易ID
 };
 
+/**
+ * @struct EscrowInfo
+ * @brief 托管交易信息数据结构
+ * @details 包含托管交易的完整信息，包括买卖双方信息。
+ */
 struct EscrowInfo {
-  int id;
-  int offer_id;
-  int buyer_id;
-  std::string buyer_username;
-  int seller_id;
-  std::string seller_username;
-  double amount;
-  std::string status;
-  std::string created_at;
-  std::string updated_at;
+  int id;                           // 托管交易ID
+  int offer_id;                     // 报价ID
+  int buyer_id;                     // 买家ID
+  std::string buyer_username;       // 买家用户名
+  int seller_id;                    // 卖家ID
+  std::string seller_username;      // 卖家用户名
+  double amount;                    // 托管金额
+  std::string status;               // 交易状态
+  std::string created_at;           // 创建时间
+  std::string updated_at;           // 更新时间
 };
 
+/**
+ * @struct GetEscrowResponse
+ * @brief 获取托管交易响应数据结构
+ * @details 返回操作状态、是否存在托管交易和托管交易信息。
+ */
 struct GetEscrowResponse {
-  std::string status;
-  bool has_escrow;
-  std::optional<EscrowInfo> escrow;
+  std::string status;               // 操作状态
+  bool has_escrow;                  // 是否存在托管交易
+  std::optional<EscrowInfo> escrow; // 托管交易信息（可选）
 };
 
+/**
+ * @brief 请求产品证明
+ * @details 帖子所有者请求报价者提供产品证明，在对话中添加证明请求消息。
+ * @param req HTTP请求指针，包含可选的message参数
+ * @param callback 响应回调函数
+ * @param id 报价ID字符串
+ * @return Task协程对象
+ */
 // Request proof of product
 Task<> Offers::request_proof(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback,
@@ -646,6 +773,14 @@ Task<> Offers::request_proof(
   co_return;
 }
 
+/**
+ * @brief 提交产品证明
+ * @details 报价者提交产品证明图片和描述，创建证明记录，并在对话中添加证明提交消息。
+ * @param req HTTP请求指针，包含image_url和可选的description参数
+ * @param callback 响应回调函数
+ * @param id 报价ID字符串
+ * @return Task协程对象
+ */
 // Submit proof of product
 Task<> Offers::submit_proof(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback,
@@ -775,6 +910,14 @@ Task<> Offers::submit_proof(
   co_return;
 }
 
+/**
+ * @brief 获取报价的产品证明列表
+ * @details 获取指定报价的所有产品证明记录，仅报价创建者和帖子所有者有权访问。
+ * @param req HTTP请求指针
+ * @param callback 响应回调函数
+ * @param id 报价ID字符串
+ * @return Task协程对象
+ */
 // Get proofs for an offer
 Task<> Offers::get_proofs(HttpRequestPtr req,
                           std::function<void(const HttpResponsePtr&)> callback,
@@ -857,6 +1000,15 @@ Task<> Offers::get_proofs(HttpRequestPtr req,
   co_return;
 }
 
+/**
+ * @brief 批准产品证明
+ * @details 帖子所有者批准报价者提交的产品证明，更新证明状态为approved，并在对话中添加批准消息。
+ * @param req HTTP请求指针
+ * @param callback 响应回调函数
+ * @param id 报价ID字符串
+ * @param proof_id 证明记录ID字符串
+ * @return Task协程对象
+ */
 // Approve a proof
 Task<> Offers::approve_proof(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback,
@@ -958,6 +1110,15 @@ Task<> Offers::approve_proof(
   co_return;
 }
 
+/**
+ * @brief 拒绝产品证明
+ * @details 帖子所有者拒绝报价者提交的产品证明，更新证明状态为rejected，并在对话中添加拒绝消息。
+ * @param req HTTP请求指针，包含可选的reason参数
+ * @param callback 响应回调函数
+ * @param id 报价ID字符串
+ * @param proof_id 证明记录ID字符串
+ * @return Task协程对象
+ */
 // Reject a proof
 Task<> Offers::reject_proof(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback,
@@ -1067,6 +1228,14 @@ Task<> Offers::reject_proof(
   co_return;
 }
 
+/**
+ * @brief 创建托管交易
+ * @details 帖子所有者（买家）创建托管交易，将金额存入托管账户，确保交易安全。
+ * @param req HTTP请求指针，包含amount参数
+ * @param callback 响应回调函数
+ * @param id 报价ID字符串
+ * @return Task协程对象
+ */
 // Create escrow transaction
 Task<> Offers::create_escrow(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback,
@@ -1190,6 +1359,14 @@ Task<> Offers::create_escrow(
   co_return;
 }
 
+/**
+ * @brief 获取报价的托管交易信息
+ * @details 获取指定报价的托管交易详情，包括买卖双方信息和交易金额。仅报价创建者和帖子所有者有权访问。
+ * @param req HTTP请求指针
+ * @param callback 响应回调函数
+ * @param id 报价ID字符串
+ * @return Task协程对象
+ */
 // Get escrow transaction for an offer
 Task<> Offers::get_escrow(HttpRequestPtr req,
                           std::function<void(const HttpResponsePtr&)> callback,

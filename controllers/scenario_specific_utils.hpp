@@ -1,54 +1,32 @@
+/**
+ * @file scenario_specific_utils.hpp
+ * @brief 场景特定工具集头文件
+ * @details 提供媒体附件处理相关的通用工具函数，包括媒体处理、媒体获取等功能。
+ * 媒体数据库表结构约定：
+ * - 表名格式："prefix"_media（如 offer_media、post_media、message_media）
+ * - 外键字段："prefix"_id（如 offer_id、post_id、message_id）
+ * - 表前缀："prefix"（如 offer、post、message）
+ */
 #ifndef SCENARIO_SPECIFIC_UTILS_HPP
 #define SCENARIO_SPECIFIC_UTILS_HPP
-/*
- * @ brief Scenario specific utilities 场景特定工具集
- */
 #include <drogon/drogon.h>
 #include <drogon/orm/DbClient.h>
 
-#include "../services/service_manager.hpp"
-#include "../utilities/json_manipulation.hpp"
-#include "common_req_n_resp.hpp"
+#include "../services/service_manager.hpp"   // 服务管理器头文件
+#include "../utilities/json_manipulation.hpp"  // JSON操作工具头文件
+#include "common_req_n_resp.hpp"               // 通用请求与响应结构头文件
 
 /**
- * @note
- * Assumptions for quick_process_media_attachments, process_media_attachments
- * process_media_attachments_with_response,
- * get_media_attachments and get_media_attachments_with_response,
- * media db tables have the following structure:
- * table name - "prefix"_media e.g. offer_media, post_media, message_media
- * table prefix id - "prefix"_id e.g. offer_id, post_id, message_id
- * media table prefix - "prefix" e.g. offer, post, message
- *
- */
-/**
- * @note
- * 媒体数据库表具有以下结构：
- * 关于 quick_process_media_attachments 和 process_media_attachments 的假设
- * process_media_attachments_with_response
- * 表名 - “前缀”_media，例如 offer_media、post_media、message_media
- * get_media_attachments 和 get_media_attachments_with_response
- * 媒体数据库表具有以下结构：
- * 表前缀 id - “前缀”_id，例如 offer_id、post_id、message_id
- * 表名 - “前缀”_media，例如 offer_media、post_media、message_media
- * 媒体表前缀 - “前缀” ，例如 offer、post、message* 表前缀 id - “前缀”_id，例如 offer_id、post_id、message_id
- * 媒体表前缀 - “前缀” ，例如 offer、post、message
- */
-
-/**
- * @brief Naive processing of available media. 尽力而为的处理可用媒体链接，容忍失败
- * It runs using an existing db transaction. 使用现有 db 事务运行
- * Processing involves checks for validity of object key making necessary
- * media attachment inserts.
- * 处理过程包括对对象键的有效性进行检查，并进行必要的介质附件插入操作
- * @return boolean. false means there was an error,
- * true if processing is successful even if it didn't process all.
- * 布尔值“false”表示存在错误，而“true”则表示即使没有完全处理完成，但处理过程也是成功的。
- * @param object_keys 对象密钥
- * @param transaction 数据库事务对象(需要调用方的事务)
+ * @brief 快速处理媒体附件（尽力而为）
+ * @details 尽力而为的处理可用媒体链接，容忍失败。使用现有数据库事务运行，
+ * 处理过程包括对对象键的有效性进行检查，并进行必要的媒体附件插入操作。
+ * 即使没有处理完所有媒体，只要没有发生错误就返回true。
+ * @param object_keys 媒体对象密钥列表（移动语义）
+ * @param transaction 数据库事务对象（需要调用方提供事务）
  * @param current_user_id 当前用户ID
- * @param media_table_prefix 媒体表前缀
- * @param media_table_prefix_id 媒体表前缀ID
+ * @param media_table_prefix 媒体表前缀（如 offer、post、message）
+ * @param media_table_prefix_id 关联实体ID（字符串形式）
+ * @return Task<bool> true表示处理成功（即使未处理完所有），false表示发生错误
  */
 inline drogon::Task<bool> quick_process_media_attachments(
     std::vector<std::string>&& object_keys,
@@ -100,23 +78,17 @@ inline drogon::Task<bool> quick_process_media_attachments(
 }
 
 /**
- * @brief Full processing of available media, returning processed media.
- * 完整处理可用媒体，返回处理后的媒体。
- * It runs using an existing db transaction.
- * 它通过现有的数据库事务运行。(需要调用方的事务)
- * Processing involves checks for validity of object key making necessary
- * media attachment inserts.
- * 处理涉及对对象密钥的有效性检查并进行必要的媒体附件插入
- * @return std::vector<MediaQuickInfo> containing the fetched media
- * if successful or an error string.
- * 返回处理后的媒体(严格处理并进行错误传播)。
- * @note Parameters passed by value/moved to avoid dangling references.
- * 参数通过值传递/移动以避免悬空引用
- * @param object_keys 媒体对象密钥
- * @param transaction 数据库事务对象(需要调用方事务)
- * @param current_user_id 当前用户ID(需要调用方的用户ID)
- * @param media_table_prefix 媒体表前缀
- * @param media_table_prefix_id 媒体表前缀ID
+ * @brief 完整处理媒体附件（严格模式）
+ * @details 完整处理可用媒体，返回处理后的媒体信息。使用现有数据库事务运行，
+ * 处理过程包括对对象键的有效性检查并进行必要的媒体附件插入。
+ * 参数通过值传递/移动以避免悬空引用。
+ * @param object_keys 媒体对象密钥列表（移动语义）
+ * @param transaction 数据库事务对象（需要调用方提供事务）
+ * @param current_user_id 当前用户ID（整数形式）
+ * @param media_table_prefix 媒体表前缀（如 offer、post、message）
+ * @param media_table_prefix_id 关联实体ID（整数形式）
+ * @return Task<std::expected<std::vector<MediaQuickInfo>, std::string>> 
+ * 成功时返回处理后的媒体列表，失败时返回错误信息字符串
  */
 inline drogon::Task<std::expected<std::vector<MediaQuickInfo>, std::string>>
 process_media_attachments(
@@ -211,24 +183,17 @@ EXCLUDED：这是一个特殊的关键字，代表"尝试插入但被冲突的�
 }
 
 /**
- * @brief Full processing of available media and continues the response.
- * 完整处理可用媒体并继续响应。
- * It runs using an existing db transaction.
- * 它是在现有的数据库事务框架下运行的。
- * It checks for validity of object key, does necessary media attachment
- * inserts and return a response to client.
- *它会检查对象键的有效性，并进行必要的媒体附件操作进行插入操作并向客户端返回响应。
- * @note Parameters passed by value/moved to avoid dangling references.
- * 参数通过值传递/移动以避免悬空引用。
- * This is more efficient for processing only operations.
- * 优化处理操作，避免重复代码。
- * @param callback 回调函数，用于返回响应。
- * @param object_keys 媒体对象密钥
- * @param transaction 数据库事务对象(需要调用方事务)
- * @param current_user_id 当前用户ID(需要调用方的用户ID)
- * @param media_table_prefix 媒体表前缀
- * @param media_table_prefix_id 媒体表前缀ID
- * 	端到端：处理 → 部分失败时回滚 → 响应
+ * @brief 完整处理媒体附件并返回响应
+ * @details 完整处理可用媒体并直接返回HTTP响应给客户端。使用现有数据库事务运行，
+ * 检查对象键的有效性，进行必要的媒体附件插入操作，并向客户端返回响应。
+ * 如果部分媒体处理失败，则回滚事务并返回错误。
+ * @param callback HTTP响应回调函数
+ * @param object_keys 媒体对象密钥列表（移动语义）
+ * @param transaction 数据库事务对象（需要调用方提供事务）
+ * @param current_user_id 当前用户ID（字符串形式）
+ * @param media_table_prefix 媒体表前缀（如 offer、post、message）
+ * @param media_table_prefix_id 关联实体ID（字符串形式）
+ * @return Task<> 异步任务
  */
 inline drogon::Task<> process_media_attachments_with_response(
     std::function<void(const drogon::HttpResponsePtr&)> callback,
@@ -324,16 +289,14 @@ inline drogon::Task<> process_media_attachments_with_response(
 }
 
 /**
- * @brief Fetches available media. 获取可用媒体附件
- * It runs using an existing db transaction. 它使用现有的数据库事务运行。
- * @return std::vector<MediaQuickInfo> containing the fetched media
- * if successful or an error string.
- * 返回一个包含已获取媒体信息的std::vector<MediaQuickInfo>，如果成功或错误字符串。
- * @note Parameters passed by value to avoid dangling references.
- * 参数通过值传递，避免悬空引用。
- * @param media_table_prefix 媒体表前缀
- * @param media_table_prefix_id 媒体表前缀ID
- *  用于控制器组装的可组合获取
+ * @brief 获取媒体附件
+ * @details 根据媒体表前缀和关联实体ID查询媒体附件信息。通过内连接查询关联表和媒体表，
+ * 获取媒体的详细信息（ID、存储键、文件名、MIME类型、大小等）。
+ * 参数通过值传递以避免悬空引用。
+ * @param media_table_prefix 媒体表前缀（如 offer、post、message）
+ * @param media_table_prefix_id 关联实体ID（整数形式）
+ * @return Task<std::expected<std::vector<MediaQuickInfo>, std::string>> 
+ * 成功时返回媒体列表，失败时返回错误信息字符串
  */
 inline drogon::Task<std::expected<std::vector<MediaQuickInfo>, std::string>>
 get_media_attachments(std::string media_table_prefix,
@@ -396,17 +359,14 @@ get_media_attachments(std::string media_table_prefix,
 }
 
 /**
- * @brief Fetches available media and continues the response. 获取可用媒体并继续响应。
- * It runs using an existing db transaction. 它使用现有的数据库事务运行。
- * @return std::vector<MediaQuickInfo> containing the fetched media
- * if successful or an error string.
- * 返回一个包含已获取媒体信息的std::vector<MediaQuickInfo>，如果成功或错误字符串。
- * @note Parameters passed by value to avoid dangling references.
- * 参数通过值传递，避免悬空引用。
- * @param callback 回调函数，用于返回响应。
- * @param media_table_prefix 媒体表前缀
- * @param media_table_prefix_id 媒体表前缀ID
- * 用于简单 GET 端点的直接响应
+ * @brief 获取媒体附件并返回响应
+ * @details 根据媒体表前缀和关联实体ID查询媒体附件信息，并直接返回HTTP响应给客户端。
+ * 通过内连接查询关联表和媒体表，获取媒体的详细信息。适用于简单GET端点的直接响应。
+ * 参数通过值传递以避免悬空引用。
+ * @param callback HTTP响应回调函数
+ * @param media_table_prefix 媒体表前缀（如 offer、post、message）
+ * @param media_table_prefix_id 关联实体ID（字符串形式）
+ * @return Task<> 异步任务
  */
 inline drogon::Task<> get_media_attachments_with_response(
     std::function<void(const drogon::HttpResponsePtr&)> callback,

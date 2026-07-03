@@ -1,12 +1,21 @@
-#include <drogon/HttpClient.h>
-#include <drogon/drogon_test.h>
-#include <drogon/utils/Utilities.h>
+/**
+ * @file test_dashboard.cc
+ * @brief 仪表盘功能测试文件
+ * @details 测试用户仪表盘数据获取、订单统计等功能。
+ */
 
-#include <string>
+#include <drogon/HttpClient.h>           // 引入Drogon HTTP客户端头文件
+#include <drogon/drogon_test.h>          // 引入Drogon测试框架头文件
+#include <drogon/utils/Utilities.h>      // 引入Drogon工具函数头文件
 
-#include "helpers.hpp"
+#include <string>                        // 引入字符串类头文件
 
+#include "helpers.hpp"                   // 引入测试辅助函数头文件
 
+/**
+ * @brief 仪表盘测试用例
+ * @details 测试用户仪表盘数据获取、订单状态统计等功能。
+ */
 DROGON_TEST(DashboardTest) {
   auto db_client = drogon::app().getDbClient();
 

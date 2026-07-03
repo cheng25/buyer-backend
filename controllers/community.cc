@@ -1,3 +1,8 @@
+/**
+ * @file community.cc
+ * @brief 社区帖子控制器实现文件
+ * @details 实现社区帖子的创建、查询、更新、订阅和筛选等功能，支持媒体附件处理和实时通知推送。
+ */
 #include "community.hpp"
 
 #include <drogon/HttpController.h>
@@ -42,6 +47,11 @@ using drogon::orm::DrogonDbException;
 
 using api::v1::Community;
 
+/**
+ * @struct CommunityPost
+ * @brief 社区帖子数据结构
+ * @details 包含帖子基本信息、用户信息、订阅状态和媒体附件等完整数据。
+ */
 // 社区帖子
 struct CommunityPost {
   int id;                         // 帖子ID posts.id
@@ -59,6 +69,11 @@ struct CommunityPost {
   std::optional<std::vector<MediaQuickInfo>> media; // 媒体附件
 };
 
+/**
+ * @struct CreatePostRequest
+ * @brief 创建帖子请求数据结构
+ * @details 包含创建帖子所需的内容、标签、位置、价格范围和媒体附件等可选字段。
+ */
 // 创建帖子请求
 struct CreatePostRequest {
   std::string content;                     // 内容 posts.content
@@ -69,12 +84,22 @@ struct CreatePostRequest {
   std::optional<std::vector<std::string>> media; // 媒体附件 posts.media
 };
 
+/**
+ * @struct CreatePostResponse
+ * @brief 创建帖子响应数据结构
+ * @details 返回帖子创建状态、帖子ID和创建时间。
+ */
 struct CreatePostResponse {
-  std::string status;
-  int post_id;
-  std::string created_at;
+  std::string status;           // 创建状态
+  int post_id;                  // 新创建的帖子ID
+  std::string created_at;       // 创建时间
 };
 
+/**
+ * @struct UpdatePostRequest
+ * @brief 更新帖子请求数据结构
+ * @details 包含帖子更新的可选字段，支持部分字段更新。
+ */
 struct UpdatePostRequest {
   std::optional<std::string> content;
   std::optional<std::string> location;
@@ -83,6 +108,11 @@ struct UpdatePostRequest {
   std::optional<std::vector<std::string>> media;
 };
 
+/**
+ * @struct FilterPostsRequest
+ * @brief 帖子筛选请求数据结构
+ * @details 支持按标签、位置、状态、是否产品请求和分页进行筛选。
+ */
 // 帖子筛选请求
 struct FilterPostsRequest {
   std::optional<std::string> tags;          // 标签
@@ -97,6 +127,13 @@ struct Tag {
   int count;
 };
 
+/**
+ * @brief 获取所有帖子的分页信息流
+ * @details 返回帖子信息、用户信息、订阅数、当前用户是否已订阅以及媒体附件等完整数据。
+ * @param req HTTP请求指针
+ * @param callback 响应回调函数
+ * @return Task协程对象
+ */
 // 所有帖子的分页信息流, 包含帖子信息、用户信息、订阅数、当前用户是否已订阅、媒体附件
 Task<> Community::get_posts(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback) {
@@ -174,6 +211,13 @@ Task<> Community::get_posts(
   co_return;
 }
 
+/**
+ * @brief 创建新帖子
+ * @details 创建社区帖子，支持媒体附件上传、自动订阅、标签和位置通知推送。
+ * @param req HTTP请求指针
+ * @param callback 响应回调函数
+ * @return Task协程对象
+ */
 //创建新帖子
 Task<> Community::create_post(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback) {
@@ -321,6 +365,14 @@ Task<> Community::create_post(
   co_return;
 }
 
+/**
+ * @brief 根据帖子ID获取单个帖子详情
+ * @details 返回帖子完整信息，包括用户信息、订阅状态和媒体附件。
+ * @param req HTTP请求指针
+ * @param callback 响应回调函数
+ * @param id 帖子ID字符串
+ * @return Task协程对象
+ */
 // Get a single post by ID//根据 帖子ID 获取单个帖子
 Task<> Community::get_post_by_id(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback,
@@ -401,6 +453,14 @@ Task<> Community::get_post_by_id(
   co_return;
 }
 
+/**
+ * @brief 更新帖子信息
+ * @details 更新帖子内容、位置、价格范围、标签和媒体附件，支持部分字段更新。当前行为是用新提供的数据覆盖原有数据。媒体文件会被新文件覆盖。
+ * @param req HTTP请求指针
+ * @param callback 响应回调函数
+ * @param id 帖子ID字符串
+ * @return Task协程对象
+ */
 // Update a post
 // Current behaviour is to overwrite data with any newly provide data.
 // Media files are overwritten with new files.
@@ -582,6 +642,13 @@ Task<> Community::update_post(
   co_return;
 }
 
+/**
+ * @brief 按标签、位置和状态筛选帖子
+ * @details 支持多标签OR条件筛选、位置模糊匹配、状态精确匹配和是否产品请求筛选，支持分页。
+ * @param req HTTP请求指针
+ * @param callback 响应回调函数
+ * @return Task协程对象
+ */
 // Filter posts by tags, location, and status// 按标签、地点和状态对帖子进行筛选
 Task<> Community::filter_posts(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback) {
@@ -741,6 +808,14 @@ Task<> Community::filter_posts(
   co_return;
 }
 
+/**
+ * @brief 订阅帖子
+ * @details 用户订阅指定帖子，接收该帖子的更新通知。支持幂等操作，重复订阅不会报错。
+ * @param req HTTP请求指针
+ * @param callback 响应回调函数
+ * @param id 帖子ID字符串
+ * @return Task协程对象
+ */
 // Subscribe to a post
 Task<> Community::subscribe_to_post(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback,
@@ -793,6 +868,14 @@ Task<> Community::subscribe_to_post(
   co_return;
 }
 
+/**
+ * @brief 取消订阅帖子
+ * @details 用户取消订阅指定帖子，不再接收该帖子的更新通知。支持幂等操作，未订阅时取消不会报错。
+ * @param req HTTP请求指针
+ * @param callback 响应回调函数
+ * @param id 帖子ID字符串
+ * @return Task协程对象
+ */
 // Unsubscribe from a post
 Task<> Community::unsubscribe_from_post(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback,
@@ -845,6 +928,14 @@ Task<> Community::unsubscribe_from_post(
   co_return;
 }
 
+/**
+ * @brief 订阅实体（标签/位置）
+ * @details 用户订阅指定的标签或位置实体，接收相关帖子的通知推送。
+ * @param req HTTP请求指针
+ * @param callback 响应回调函数
+ * @param name 实体名称（标签或位置）
+ * @return Task协程对象
+ */
 Task<> Community::subscribe_to_entity(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback,
     std::string name) {
@@ -873,6 +964,14 @@ Task<> Community::subscribe_to_entity(
   co_return;
 }
 
+/**
+ * @brief 取消订阅实体（标签/位置）
+ * @details 用户取消订阅指定的标签或位置实体，不再接收相关帖子的通知推送。
+ * @param req HTTP请求指针
+ * @param callback 响应回调函数
+ * @param name 实体名称（标签或位置）
+ * @return Task协程对象
+ */
 Task<> Community::unsubscribe_from_entity(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback,
     std::string name) {
@@ -901,6 +1000,13 @@ Task<> Community::unsubscribe_from_entity(
   co_return;
 }
 
+/**
+ * @brief 获取用户订阅的帖子列表
+ * @details 返回当前用户已订阅的所有帖子，包含完整的帖子信息和订阅状态。
+ * @param req HTTP请求指针
+ * @param callback 响应回调函数
+ * @return Task协程对象
+ */
 // Get user's subscriptions// 获取当前用户订阅的帖子
 Task<> Community::get_subscriptions(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback) {
@@ -1035,6 +1141,13 @@ DISTINCT 是多余的操作，会增加额外的去重开销
 │    只返回前 20 条                    │
 └─────────────────────────────────────┘
 
+ */
+/**
+ * @brief 获取热门标签列表
+ * @details 返回按使用频率排名前20的标签及其使用次数。
+ * @param req HTTP请求指针
+ * @param callback 响应回调函数
+ * @return Task协程对象
  */
 // Get popular tags// 按使用频率排名前 20 的标签
 Task<> Community::get_popular_tags(

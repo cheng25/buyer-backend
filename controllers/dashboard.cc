@@ -1,3 +1,8 @@
+/**
+ * @file dashboard.cc
+ * @brief 仪表盘控制器实现文件
+ * @details 实现仪表盘数据获取功能，包括订单统计等概览信息。
+ */
 #include "dashboard.hpp"
 
 #include <drogon/HttpResponse.h>
@@ -16,10 +21,22 @@ using drogon::HttpResponse;
 
 using api::v1::Dashboard;
 
+/**
+ * @struct OrdersData
+ * @brief 订单统计数据结构
+ * @details 包含按状态分组的订单数量统计。
+ */
 struct OrdersData {
-  std::unordered_map<std::string, int> orders;
+  std::unordered_map<std::string, int> orders;  // 订单状态到数量的映射
 };
 
+/**
+ * @brief 获取仪表盘数据
+ * @details 获取订单按状态分组的统计数据，支持分页查询。
+ * @param req HTTP请求指针，支持page和pageSize查询参数
+ * @param callback 响应回调函数
+ * @return Task协程对象
+ */
 drogon::Task<> Dashboard::get_dashboard_data(
     drogon::HttpRequestPtr req,
     std::function<void(const drogon::HttpResponsePtr&)> callback) {

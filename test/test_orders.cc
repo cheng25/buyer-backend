@@ -1,11 +1,21 @@
-#include <drogon/HttpClient.h>
-#include <drogon/drogon_test.h>
-#include <drogon/utils/Utilities.h>
+/**
+ * @file test_orders.cc
+ * @brief 订单管理功能测试文件
+ * @details 测试订单创建、查询、状态管理等订单相关功能。
+ */
 
-#include <string>
+#include <drogon/HttpClient.h>           // 引入Drogon HTTP客户端头文件
+#include <drogon/drogon_test.h>          // 引入Drogon测试框架头文件
+#include <drogon/utils/Utilities.h>      // 引入Drogon工具函数头文件
 
-#include "helpers.hpp"
+#include <string>                        // 引入字符串类头文件
 
+#include "helpers.hpp"                   // 引入测试辅助函数头文件
+
+/**
+ * @brief 订单管理测试用例
+ * @details 测试订单创建、查询、状态验证等功能。
+ */
 DROGON_TEST(OrdersTest) {
   auto db_client = drogon::app().getDbClient();
 

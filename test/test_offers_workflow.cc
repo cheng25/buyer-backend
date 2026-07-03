@@ -1,10 +1,20 @@
-#include <drogon/HttpClient.h>
-#include <drogon/drogon_test.h>
+/**
+ * @file test_offers_workflow.cc
+ * @brief 报价工作流测试文件
+ * @details 测试报价创建、协商、接受、拒绝等完整报价流程。
+ */
 
-#include <string>
+#include <drogon/HttpClient.h>           // 引入Drogon HTTP客户端头文件
+#include <drogon/drogon_test.h>          // 引入Drogon测试框架头文件
 
-#include "helpers.hpp"
+#include <string>                        // 引入字符串类头文件
 
+#include "helpers.hpp"                   // 引入测试辅助函数头文件
+
+/**
+ * @brief 报价工作流测试用例
+ * @details 测试报价创建、协商、接受、拒绝、通知等完整报价流程。
+ */
 DROGON_TEST(OffersWorkflowTest) {
   auto db_client = drogon::app().getDbClient();
 

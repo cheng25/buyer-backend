@@ -1,11 +1,21 @@
-#include <drogon/HttpClient.h>
-#include <drogon/drogon_test.h>
-#include <drogon/utils/Utilities.h>
+/**
+ * @file test_search.cc
+ * @brief 搜索功能测试文件
+ * @details 测试订单搜索、帖子搜索、空查询、认证验证等搜索相关功能。
+ */
 
-#include <string>
+#include <drogon/HttpClient.h>           // 引入Drogon HTTP客户端头文件
+#include <drogon/drogon_test.h>          // 引入Drogon测试框架头文件
+#include <drogon/utils/Utilities.h>      // 引入Drogon工具函数头文件
 
-#include "helpers.hpp"
+#include <string>                        // 引入字符串类头文件
 
+#include "helpers.hpp"                   // 引入测试辅助函数头文件
+
+/**
+ * @brief 搜索功能测试用例
+ * @details 测试订单搜索、帖子搜索、空查询、不存在的关键词搜索、认证验证等功能。
+ */
 DROGON_TEST(SearchTest) {
   // Setup test database connection
   auto db_client = drogon::app().getDbClient();

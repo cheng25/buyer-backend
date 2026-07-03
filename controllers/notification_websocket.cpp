@@ -1,3 +1,8 @@
+/**
+ * @file notification_websocket.cpp
+ * @brief 通知WebSocket控制器实现文件
+ * @details 实现WebSocket连接管理、消息处理和通知推送功能，支持用户订阅标签和位置等实体。
+ */
 #include "notification_websocket.hpp"
 
 #include "../services/service_manager.hpp"
@@ -9,16 +14,22 @@ using drogon::HttpRequestPtr;
 using drogon::WebSocketConnectionPtr;
 using drogon::WebSocketMessageType;
 
+/**
+ * @struct WelcomeMessage
+ * @brief WebSocket欢迎消息数据结构
+ * @details 客户端连接成功后发送的欢迎消息。
+ */
 struct WelcomeMessage {
-  std::string type;
-  std::string message;
+  std::string type;              // 消息类型
+  std::string message;           // 消息内容
 };
 
 /**
- * @brief Handle new message received from client 处理从客户端接收到的新消息
- * @param wsConnPtr WebSocket connection pointer WebSocket连接指针
- * @param message Message received from client 从客户端接收到的消息
- * @param type Type of message received 消息类型
+ * @brief 处理从客户端接收到的新消息
+ * @details 根据消息类型进行相应处理，支持文本消息、二进制消息、Ping/Pong心跳和连接关闭消息。
+ * @param wsConnPtr WebSocket连接指针
+ * @param message 从客户端接收到的消息
+ * @param type 消息类型
  */
 void NotificationWebSocket::handleNewMessage(
     const WebSocketConnectionPtr& wsConnPtr, std::string&& message,
@@ -65,9 +76,10 @@ void NotificationWebSocket::handleNewMessage(
 }
 
 /**
- * @brief Handle new connection from client 处理从客户端接新的连接
- * @param req Http request pointer Http请求指针
- * @param wsConnPtr WebSocket connection pointer WebSocket连接指针
+ * @brief 处理客户端新连接
+ * @details 验证用户身份，注册WebSocket连接到连接管理器，并订阅用户已有的标签订阅。
+ * @param req HTTP请求指针
+ * @param wsConnPtr WebSocket连接指针
  */
 void NotificationWebSocket::handleNewConnection(
     const HttpRequestPtr& req, const WebSocketConnectionPtr& wsConnPtr) {
@@ -104,8 +116,9 @@ void NotificationWebSocket::handleNewConnection(
 }
 
 /**
- * @brief Handle connection closed 处理连接关闭
- * @param wsConnPtr WebSocket connection pointer WebSocket连接指针
+ * @brief 处理连接关闭
+ * @details 从连接管理器中移除WebSocket连接，并取消用户的所有订阅。
+ * @param wsConnPtr WebSocket连接指针
  */
 void NotificationWebSocket::handleConnectionClosed(
     const WebSocketConnectionPtr& wsConnPtr) {
@@ -119,8 +132,9 @@ void NotificationWebSocket::handleConnectionClosed(
 }
 
 /**
- * @brief Subscribe user to existing subscriptions 为用户订阅现有订阅
- * @param user_id User ID 用户ID
+ * @brief 为用户订阅现有订阅
+ * @details 从数据库查询用户已保存的订阅列表，并为用户订阅相应的频道。
+ * @param user_id 用户ID
  */
 void NotificationWebSocket::subscribe_user_to_existing_subs(
     std::string user_id) {

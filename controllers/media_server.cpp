@@ -1,3 +1,8 @@
+/**
+ * @file media_server.cpp
+ * @brief 媒体服务器控制器实现文件
+ * @details 实现媒体文件上传URL生成、文件验证、元数据获取、证明验证和下载URL生成等功能。
+ */
 // clang-format off
 #include "../utilities/uuid_generator.hpp"
 // clang-format on
@@ -17,44 +22,85 @@
 using api::v1::MediaController;
 using drogon::CT_APPLICATION_JSON;
 
+/**
+ * @struct GetUploadUrlRequest
+ * @brief 获取上传URL请求数据结构
+ * @details 包含文件名、是否为证明文件和内容类型等参数。
+ */
 struct GetUploadUrlRequest {
-  std::string filename;
-  std::optional<bool> is_proof{false};
-  std::optional<std::string> content_type{"application/octet-stream"};
+  std::string filename;                          // 文件名
+  std::optional<bool> is_proof{false};           // 是否为证明文件，默认false
+  std::optional<std::string> content_type{"application/octet-stream"};  // 内容类型
 };
 
+/**
+ * @struct GetUploadUrlResponse
+ * @brief 获取上传URL响应数据结构
+ * @details 返回预签名上传URL和对象键。
+ */
 struct GetUploadUrlResponse {
-  std::string upload_url;
-  std::string object_key;
+  std::string upload_url;                        // 预签名上传URL
+  std::string object_key;                        // 对象键
 };
 
+/**
+ * @struct VerifyObjectKeyResponse
+ * @brief 验证对象键响应数据结构
+ * @details 返回对象是否存在。
+ */
 struct VerifyObjectKeyResponse {
-  bool exists;
+  bool exists;                                   // 对象是否存在
 };
 
+/**
+ * @struct GetMediaMetadataResponse
+ * @brief 获取媒体元数据响应数据结构
+ * @details 返回媒体文件的完整元数据信息。
+ */
 struct GetMediaMetadataResponse {
-  std::string object_key;
-  std::string content_type;
-  int64_t content_length;
-  std::string last_modified;
-  std::string etag;
+  std::string object_key;                        // 对象键
+  std::string content_type;                      // 内容类型
+  int64_t content_length;                        // 内容长度（字节）
+  std::string last_modified;                     // 最后修改时间
+  std::string etag;                              // ETag标识符
 };
 
+/**
+ * @struct VerifyProofResponse
+ * @brief 验证证明响应数据结构
+ * @details 返回证明是否有效和对象键。
+ */
 struct VerifyProofResponse {
-  bool is_valid;
-  std::string object_key;
+  bool is_valid;                                 // 证明是否有效
+  std::string object_key;                        // 对象键
 };
 
+/**
+ * @struct GetMediaUrlResponse
+ * @brief 获取媒体URL响应数据结构
+ * @details 返回下载URL和内容类型。
+ */
 struct GetMediaUrlResponse {
-  std::string download_url;
-  std::string content_type;
+  std::string download_url;                      // 下载URL
+  std::string content_type;                      // 内容类型
 };
 
+/**
+ * @brief 允许上传的文件类型列表
+ * @details 限制仅允许图片和视频类型的文件上传。
+ */
 constexpr auto allowed_file_types = std::to_array<std::string_view>({
     "image/jpeg", "image/png", "image/gif", "image/webp", "video/mp4",
     "video/webm",  // "video/quicktime",
 });
 
+/**
+ * @brief 获取媒体文件上传URL
+ * @details 生成S3预签名上传URL，用于客户端直接上传媒体文件。支持文件类型白名单校验。
+ * @param req HTTP请求指针，包含filename、可选的is_proof和content_type参数
+ * @param callback 响应回调函数
+ * @return Task协程对象
+ */
 drogon::Task<> MediaController::get_upload_url(
     const drogon::HttpRequestPtr req,
     std::function<void(const drogon::HttpResponsePtr &)> callback) {
@@ -128,6 +174,13 @@ drogon::Task<> MediaController::get_upload_url(
   co_return;
 }
 
+/**
+ * @brief 验证对象键是否存在
+ * @details 检查指定的object_key在S3存储桶中是否存在。
+ * @param req HTTP请求指针，支持object_key查询参数
+ * @param callback 响应回调函数
+ * @return Task协程对象
+ */
 drogon::Task<> MediaController::verify_object_key(
     const drogon::HttpRequestPtr req,
     std::function<void(const drogon::HttpResponsePtr &)> callback) {
@@ -166,6 +219,13 @@ drogon::Task<> MediaController::verify_object_key(
   co_return;
 }
 
+/**
+ * @brief 获取媒体文件元数据
+ * @details 获取指定object_key对应的媒体文件的完整元数据信息，包括内容类型、大小、修改时间等。
+ * @param req HTTP请求指针，支持object_key查询参数
+ * @param callback 响应回调函数
+ * @return Task协程对象
+ */
 drogon::Task<> MediaController::get_media_metadata(
     const drogon::HttpRequestPtr req,
     std::function<void(const drogon::HttpResponsePtr &)> callback) {
@@ -207,6 +267,13 @@ drogon::Task<> MediaController::get_media_metadata(
   co_return;
 }
 
+/**
+ * @brief 验证证明文件
+ * @details 处理并验证指定的证明文件是否有效。
+ * @param req HTTP请求指针，支持object_key查询参数
+ * @param callback 响应回调函数
+ * @return Task协程对象
+ */
 drogon::Task<> MediaController::verify_proof(
     const drogon::HttpRequestPtr req,
     std::function<void(const drogon::HttpResponsePtr &)> callback) {
@@ -245,6 +312,13 @@ drogon::Task<> MediaController::verify_proof(
   co_return;
 }
 
+/**
+ * @brief 获取媒体文件下载URL
+ * @details 生成S3预签名下载URL，根据文件扩展名自动推断内容类型。
+ * @param req HTTP请求指针，支持object_key查询参数
+ * @param callback 响应回调函数
+ * @return Task协程对象
+ */
 drogon::Task<> MediaController::get_media_url(
     const drogon::HttpRequestPtr req,
     std::function<void(const drogon::HttpResponsePtr &)> callback) {

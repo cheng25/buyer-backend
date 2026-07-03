@@ -1,3 +1,8 @@
+/**
+ * @file location.cc
+ * @brief 位置控制器实现文件
+ * @details 实现用户位置管理功能，包括位置记录、位置聚类、附近位置查找和DBSCAN重新聚类。
+ */
 #include "location.hpp"
 
 #include <drogon/HttpResponse.h>
@@ -29,33 +34,60 @@ using drogon::orm::DrogonDbException;
 
 using api::v1::LocationController;
 
+/**
+ * @struct AddLocationRequest
+ * @brief 添加位置请求数据结构
+ * @details 包含用户位置的经纬度和GPS精度信息。
+ */
 struct AddLocationRequest {
-  double latitude;
-  double longitude;
-  std::optional<double> gps_accuracy{100.0};
+  double latitude;                 // 纬度
+  double longitude;                // 经度
+  std::optional<double> gps_accuracy{100.0};  // GPS精度（米），默认100米
 };
 
+/**
+ * @struct AddLocationResponse
+ * @brief 添加位置响应数据结构
+ * @details 返回位置保存状态和设备ID。
+ */
 struct AddLocationResponse {
-  std::string status;
-  std::string device_id;
+  std::string status;              // 操作状态
+  std::string device_id;           // 设备ID
 };
 
+/**
+ * @struct ClusterData
+ * @brief 位置聚类数据结构
+ * @details 包含聚类ID、点数量和聚类中心点坐标。
+ */
 struct ClusterData {
-  std::string id;
-  int point_count;
-  std::string centroid;  // ST_AsGeoJSON returns a string
+  std::string id;                  // 聚类ID
+  int point_count;                 // 聚类中的点数
+  std::string centroid;            // ST_AsGeoJSON返回的中心点坐标字符串
 };
 
+/**
+ * @struct LocationPointResponse
+ * @brief 位置点响应数据结构
+ * @details 包含位置点的经纬度、精度、用户ID、设备ID、聚类ID和距离信息。
+ */
 struct LocationPointResponse {
-  double latitude;
-  double longitude;
-  double accuracy;
-  std::string user_id;
-  std::string device_id;
-  std::string cluster_id;
-  double distance;
+  double latitude;                 // 纬度
+  double longitude;                // 经度
+  double accuracy;                 // GPS精度
+  std::string user_id;             // 用户ID
+  std::string device_id;           // 设备ID
+  std::string cluster_id;          // 聚类ID
+  double distance;                 // 距离中心点的距离（米）
 };
 
+/**
+ * @brief 添加用户位置信息
+ * @details 保存用户的GPS位置信息到数据库，支持UPSERT操作（存在则更新），使用PostGIS存储地理坐标。
+ * @param req HTTP请求指针，包含latitude、longitude和可选的gps_accuracy参数
+ * @param callback 响应回调函数
+ * @return Task协程对象
+ */
 drogon::Task<> LocationController::add_location(
     const HttpRequestPtr req,
     std::function<void(const HttpResponsePtr&)> callback) {
@@ -111,6 +143,13 @@ drogon::Task<> LocationController::add_location(
   co_return;
 }
 
+/**
+ * @brief 获取位置聚类数据
+ * @details 获取已聚类的位置数据，按偏移量分页，每页15条，包含聚类ID、点数和中心点坐标。
+ * @param req HTTP请求指针，支持offset查询参数
+ * @param callback 响应回调函数
+ * @return Task协程对象
+ */
 // Paginated by offset (15 per page)
 drogon::Task<> LocationController::get_clusters(
     const HttpRequestPtr req,
@@ -155,6 +194,13 @@ drogon::Task<> LocationController::get_clusters(
   co_return;
 }
 
+/**
+ * @brief 查找附近位置点
+ * @details 根据给定的经纬度和半径查找附近的用户位置点，按偏移量分页，每页15条。
+ * @param req HTTP请求指针，支持lat、lon、radius和offset查询参数
+ * @param callback 响应回调函数
+ * @return Task协程对象
+ */
 // Paginated by offset (15 per page)
 drogon::Task<> LocationController::find_nearby(
     const HttpRequestPtr req,
@@ -226,6 +272,13 @@ drogon::Task<> LocationController::find_nearby(
   co_return;
 }
 
+/**
+ * @brief 重新进行位置聚类
+ * @details 使用PostGIS的DBSCAN算法对所有位置点进行重新聚类，支持自定义epsilon参数（聚类半径）。
+ * @param req HTTP请求指针，支持epsilon查询参数（单位：米，默认1000米）
+ * @param callback 响应回调函数
+ * @return Task协程对象
+ */
 drogon::Task<> LocationController::recluster(
     const HttpRequestPtr req,
     std::function<void(const HttpResponsePtr&)> callback) {

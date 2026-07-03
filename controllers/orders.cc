@@ -1,3 +1,8 @@
+/**
+ * @file orders.cc
+ * @brief 订单控制器实现文件
+ * @details 实现订单的查询和创建功能，支持分页查询。
+ */
 #include "orders.hpp"
 
 #include <drogon/HttpResponse.h>
@@ -27,30 +32,52 @@ using drogon::orm::DrogonDbException;
 
 using api::v1::Orders;
 
+/**
+ * @struct OrderInfo
+ * @brief 订单信息数据结构
+ * @details 包含订单的基本信息，包括订单ID、用户ID、状态和创建时间。
+ */
 struct OrderInfo {
-  int id;
-  int user_id;
-  std::string status;
-  std::string created_at;
+  int id;                           // 订单ID
+  int user_id;                      // 用户ID
+  std::string status;               // 订单状态
+  std::string created_at;           // 创建时间
 };
 
+/**
+ * @struct CreateOrderRequest
+ * @brief 创建订单请求数据结构
+ * @details 包含创建订单所需的用户ID和订单状态。
+ */
 struct CreateOrderRequest {
-  int user_id;
-  std::string status;
+  int user_id;                      // 用户ID
+  std::string status;               // 订单状态
 };
 
+/**
+ * @struct CreateOrderResponse
+ * @brief 创建订单响应数据结构
+ * @details 返回创建状态和新创建的订单ID。
+ */
 struct CreateOrderResponse {
-  std::string status;
-  int order_id;
+  std::string status;               // 创建状态
+  int order_id;                     // 新创建的订单ID
 };
 
+/**
+ * @brief 获取订单列表
+ * @details 查询订单列表，支持分页参数（page和pageSize），按订单ID降序排列。
+ * @param req HTTP请求指针
+ * @param callback HTTP响应回调函数
+ * @return Task<> 异步任务
+ */
 Task<> Orders::get_orders(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback) {
   auto db = app().getDbClient();
 
-  // Pagination parameters
-  std::size_t page = 1;
-  std::size_t pageSize = 20;
+  // 分页参数
+  std::size_t page = 1;             // 当前页码，默认为1
+  std::size_t pageSize = 20;        // 每页大小，默认为20
 
   if (!req->getParameter("page").empty()) {
     page = std::max(
@@ -94,10 +121,18 @@ Task<> Orders::get_orders(
   co_return;
 }
 
+/**
+ * @brief 创建新订单
+ * @details 根据请求参数创建新订单，验证用户ID和订单状态不能为空。
+ * @param req HTTP请求指针
+ * @param callback HTTP响应回调函数
+ * @return Task<> 异步任务
+ */
 Task<> Orders::create_order(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback) {
   auto db = app().getDbClient();
 
+  // 解析创建订单请求
   CreateOrderRequest create_req;
   auto parse_error = utilities::strict_read_json(create_req, req->getBody());
 
