@@ -583,3 +583,14 @@ scripts/setup_test_db.*
 
 # volumes
 .volumes/
+
+libs/
+libs/aws-sdk-cpp
+libs/cppzmq
+libs/curl
+libs/glaze
+libs/jwt-cpp
+libs/libzmq
+libs/unordered-dense
+libs/boost/assert
+libs/boost/uuid

@@ -64,11 +64,12 @@ inline void remove_user_subscription(std::string user_id,
   }
 }
 
+// 存储用户订阅
 inline void store_user_subscription(const std::string &user_id,
                                     const std::string &topic) {
   try {
-    auto db = drogon::app().getDbClient();
-
+    const auto db = drogon::app().getDbClient();
+    // 异步执行 SQL//存在冲突不采取任何行动
     db->execSqlAsync(
         "INSERT INTO user_subscriptions (user_id, subscription) "
         "VALUES ($1, $2) "

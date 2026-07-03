@@ -142,6 +142,13 @@ process_media_attachments(
       //int64_t& size = info.content_length;
       const auto& size = info.content_length;
 
+      /*这是 PostgreSQL 特有的语法，叫做 "UPSERT"（插入或更新） 操作。具体含义是：
+ON CONFLICT (storage_key)：当插入数据时，如果 storage_key 字段违反了唯一约束（即该值已存在）
+DO UPDATE SET：则执行更新操作，而不是抛出错误
+EXCLUDED：这是一个特殊的关键字，代表"尝试插入但被冲突的那行数据"
+整体意思：如果 storage_key 已存在，就更新 file_name、mime_type、size 字段为新值；
+如果不存在，就插入新记录。这是一种常见的"存在则更新，不存在则插入"的模式。
+       */
       auto media_result = co_await transaction->execSqlCoro(
           "INSERT INTO media (uploader_id, storage_key, file_name, "
           "mime_type, size) "
@@ -158,7 +165,7 @@ process_media_attachments(
         std::string query = std::format(
             "INSERT INTO {}_media ({}_id, media_id) VALUES ($1, $2)",
             media_table_prefix, media_table_prefix);
-        // Link media to particular table
+        // Link media to particular table// 链接媒体到特定的表
         co_await transaction->execSqlCoro(query, media_table_prefix_id,
                                           media_id);
 
@@ -317,7 +324,7 @@ inline drogon::Task<> process_media_attachments_with_response(
 }
 
 /**
- * @brief Fetches available media. 获取可用媒体
+ * @brief Fetches available media. 获取可用媒体附件
  * It runs using an existing db transaction. 它使用现有的数据库事务运行。
  * @return std::vector<MediaQuickInfo> containing the fetched media
  * if successful or an error string.

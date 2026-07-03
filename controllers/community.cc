@@ -25,6 +25,7 @@
 #include "../utilities/time_manipulation.hpp"
 #include "common_req_n_resp.hpp"
 #include "scenario_specific_utils.hpp"
+#include "utilities/custom_macro.hpp"
 
 using drogon::app;
 using drogon::CT_APPLICATION_JSON;
@@ -58,13 +59,14 @@ struct CommunityPost {
   std::optional<std::vector<MediaQuickInfo>> media; // 媒体附件
 };
 
+// 创建帖子请求
 struct CreatePostRequest {
-  std::string content;
-  std::optional<bool> is_product_request;
-  std::optional<std::string> location;
-  std::optional<std::string> price_range;
-  std::optional<std::vector<std::string>> tags;
-  std::optional<std::vector<std::string>> media;
+  std::string content;                     // 内容 posts.content
+  std::optional<bool> is_product_request;  // 是否是产品请求 posts.is_product_request
+  std::optional<std::string> location;      // 位置 posts.location
+  std::optional<std::string> price_range;   // 价格范围 posts.price_range
+  std::optional<std::vector<std::string>> tags;  // 标签 posts.tags
+  std::optional<std::vector<std::string>> media; // 媒体附件 posts.media
 };
 
 struct CreatePostResponse {
@@ -103,7 +105,7 @@ Task<> Community::get_posts(
   int page = 1;
   const auto page_param = req->getParameter("page");
   if (!page_param.empty()) {
-    auto page_optional = convert::string_to_int(page_param);
+    const auto page_optional = convert::string_to_int(page_param);
     if (page_optional && page_optional.value() > 0) {
       page = page_optional.value();
     }
@@ -153,17 +155,17 @@ Task<> Community::get_posts(
                               : row["price_range"].as<std::string>(),
            .subscription_count = row["subscription_count"].as<int>(),
            .is_subscribed = row["is_subscribed"].as<bool>(),
-          /*.media = media_attachments.value_or({})});*/
-          .media = media_attachments.value_or(std::vector<MediaQuickInfo>())});
+           /*.media = media_attachments.value_or({})});*/
+           .media = media_attachments.value_or(std::vector<MediaQuickInfo>())});
     }
 
-    auto resp = HttpResponse::newHttpResponse(k200OK, CT_APPLICATION_JSON);
+    const auto resp = HttpResponse::newHttpResponse(k200OK, CT_APPLICATION_JSON);
     resp->setBody(glz::write_json(posts_list).value_or(""));
     callback(resp);
   } catch (const DrogonDbException& e) {
     LOG_ERROR << "Database error: " << e.base().what();
     SimpleError ret{.error = "Database error"};
-    auto resp = HttpResponse::newHttpResponse(k500InternalServerError,
+    const auto resp = HttpResponse::newHttpResponse(k500InternalServerError,
                                               CT_APPLICATION_JSON);
     resp->setBody(glz::write_json(ret).value_or(""));
     callback(resp);
@@ -172,6 +174,7 @@ Task<> Community::get_posts(
   co_return;
 }
 
+//创建新帖子
 Task<> Community::create_post(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback) {
   auto body = req->getBody();
@@ -187,14 +190,14 @@ Task<> Community::create_post(
     co_return;
   }
 
-  std::string user_id =
+  auto user_id =
       req->getAttributes()->get<std::string>("current_user_id");
 
   std::string content = create_post_req.content;
   bool is_product_request = create_post_req.is_product_request.value_or(false);
-  std::string request_status = is_product_request ? "open" : "";
-  std::string location = create_post_req.location.value_or("");
-  std::string price_range = create_post_req.price_range.value_or("");
+  std::string request_status = is_product_request ? "open" : "";// 产品请求
+  std::string location = create_post_req.location.value_or("");// 位置
+  std::string price_range = create_post_req.price_range.value_or("");// 价格范围
 
   std::string tags_str = "{}";
   if (create_post_req.tags && !create_post_req.tags->empty()) {
@@ -212,7 +215,7 @@ Task<> Community::create_post(
   }
 
   auto db = app().getDbClient();
-  auto transaction = co_await db->newTransactionCoro();
+  auto transaction = co_await db->newTransactionCoro();// 开启事务
 
   try {
     auto result = co_await transaction->execSqlCoro(
@@ -223,7 +226,7 @@ Task<> Community::create_post(
         is_product_request, request_status, price_range);
 
     if (result.empty()) {
-      throw std::runtime_error("Initial post insert failed");
+      throw std::runtime_error("Initial post insert failed");// 插入失败
     }
     int post_id = result[0]["id"].as<int>();
     std::string created_at = result[0]["created_at"].as<std::string>();
@@ -254,10 +257,11 @@ Task<> Community::create_post(
       }
     }
 
-    // Notification
-    // Auto-subscribe post owner to their post
+    // Notification// 通知
+    // Auto-subscribe post owner to their post// 自动订阅帖子所有者
     std::string post_id_str = std::to_string(post_id);
     std::string post_topic = create_topic("post", post_id_str);
+    // Store subscription// 存储订阅
     ServiceManager::get_instance().get_subscriber().subscribe(post_topic);
     ServiceManager::get_instance().get_connection_manager().subscribe(
         post_topic, user_id);
@@ -274,7 +278,7 @@ Task<> Community::create_post(
 
     std::string post_data = glz::write_json(msg).value_or("");
 
-    // Publish to tag subscribers
+    // Publish to tag subscribers// 发布到标签订阅者
     if (create_post_req.tags && !create_post_req.tags->empty()) {
       for (const auto& tag : create_post_req.tags.value()) {
         std::string tag_topic = tag;
@@ -284,7 +288,7 @@ Task<> Community::create_post(
       }
     }
 
-    // Publish to location subscribers
+    // Publish to location subscribers// 发布到位置订阅者
     if (!location.empty()) {
       ServiceManager::get_instance().get_publisher().publish(location,
                                                              post_data);
@@ -297,7 +301,7 @@ Task<> Community::create_post(
     resp->setBody(glz::write_json(ret).value_or(""));
     callback(resp);
   } catch (const std::exception& e) {
-    transaction->rollback();
+    transaction->rollback();// 回滚事务
     LOG_ERROR << "Failed to create post" << e.what();
     SimpleError ret{.error = std::format("Failed to create post {}", e.what())};
     auto resp = HttpResponse::newHttpResponse(k500InternalServerError,
@@ -334,6 +338,7 @@ Task<> Community::get_post_by_id(
     callback(resp);
     co_return;
   }
+
   int post_id = post_id_optional.value();
 
   try {
@@ -587,7 +592,7 @@ Task<> Community::filter_posts(
   FilterPostsRequest filter_req;
   auto parse_error = utilities::strict_read_json(filter_req, req->getBody());
   if (parse_error) {
-    LOG_WARN << "Error parsing request body: " << parse_error.ec();
+    LOG_WARN << "Error parsing request body: " << static_cast<uint32_t>(parse_error.ec);
   }
   filter_req.tags = req->getParameter("tags");
   filter_req.location = req->getParameter("location");
@@ -606,8 +611,8 @@ Task<> Community::filter_posts(
   }
 
   std::size_t page = filter_req.page.value_or(1);
-  constexpr std::size_t page_size = 10;
-  const std::size_t offset = (page - 1) * page_size;
+  constexpr std::size_t page_size = 10; // 每页10个
+  const std::size_t offset = (page - 1) * page_size;// 计算偏移量
 
   std::vector<std::string> tags;
   if (filter_req.tags) {
@@ -615,11 +620,11 @@ Task<> Community::filter_posts(
     size_t pos = 0;
     std::string token;
     while ((pos = tags_str.find(',')) != std::string::npos) {
-      token = tags_str.substr(0, pos);
+      token = tags_str.substr(0, pos);// 获取标签
       if (!token.empty()) {
         tags.push_back(token);
       }
-      tags_str.erase(0, pos + 1);
+      tags_str.erase(0, pos + 1);// 移除已处理的标签
     }
     // Add the last tag if it exists如果存在最后的标签，则添加该标签
     if (!tags_str.empty()) {
@@ -642,6 +647,7 @@ Task<> Community::filter_posts(
       "WHERE 1=1 ";
 
   // Add tag filter as a union (OR) condition if tags are provided
+  // 如果提供了标签，则将标签作为并集（“或”）条件添加
   if (!tags.empty()) {
     query += "AND (";
     for (size_t i = 0; i < tags.size(); ++i) {
@@ -649,19 +655,29 @@ Task<> Community::filter_posts(
         query += " OR ";
       }
       // Escape single quotes in tag names to prevent SQL injection
-      std::string escapedTag = tags[i];
+      // 将标签名称中的单引号转义，以防止 SQL 注入攻击。
+      /*
+      如：NormalTag'); DROP TABLE users; --
+      执行多条语句，删除表
+      NormalTag''); DROP TABLE users; --
+      仅作为字符串值插入
+      通过将 ' 转义为 ''，确保用户输入的内容永远被当作数据而非SQL 代码执行。
+      */
+
+      std::string escapedTag = tags[i];//
       size_t pos = 0;
       while ((pos = escapedTag.find('\'', pos)) != std::string::npos) {
-        escapedTag.replace(pos, 1, "''");
+        escapedTag.replace(pos, 1, "''");// 替换单引号
         pos += 2;
       }
       query += "'" + escapedTag + "' = ANY(p.tags)";
     }
-    query += ") ";
+    query += ") ";// AND (
   }
 
-  // Add other filters with default values
+  // Add other filters with default values// 添加其他过滤条件并使用默认值
   if (filter_req.location && !filter_req.location->empty()) {
+    //ILIKE 不区分大小写
     query += "AND p.location ILIKE '%" + filter_req.location.value() + "%' ";
   }
 
@@ -676,7 +692,7 @@ Task<> Community::filter_posts(
         " ";
   }
 
-  // Add pagination
+  // Add pagination// 添加分页
   query += "ORDER BY p.created_at DESC LIMIT $2 OFFSET $3";
 
   LOG_DEBUG << "Filter query: " << query;
@@ -885,15 +901,15 @@ Task<> Community::unsubscribe_from_entity(
   co_return;
 }
 
-// Get user's subscriptions
+// Get user's subscriptions// 获取当前用户订阅的帖子
 Task<> Community::get_subscriptions(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback) {
-  std::string current_user_id =
+  const std::string current_user_id =
       req->getAttributes()->get<std::string>("current_user_id");
-  auto db = app().getDbClient();
+  const auto db = app().getDbClient();
 
   try {
-    auto result = co_await db->execSqlCoro(
+    const auto result = co_await db->execSqlCoro(
         "SELECT p.*, u.username, "
         "(SELECT COUNT(*) FROM post_subscriptions WHERE post_id = p.id) AS "
         "subscription_count, "
@@ -909,7 +925,7 @@ Task<> Community::get_subscriptions(
     posts_list.reserve(result.size());
     for (const auto& row : result) {
       std::optional<std::vector<MediaQuickInfo>> media_attachments =
-          std::nullopt;
+          std::nullopt;  // 媒体附件为空
       posts_list.emplace_back(CommunityPost{
           .id = row["id"].as<int>(),
           .user_id = row["user_id"].as<int>(),
@@ -930,13 +946,13 @@ Task<> Community::get_subscriptions(
           .media = media_attachments});
     }
 
-    auto resp = HttpResponse::newHttpResponse(k200OK, CT_APPLICATION_JSON);
+    const auto resp = HttpResponse::newHttpResponse(k200OK, CT_APPLICATION_JSON);
     resp->setBody(glz::write_json(posts_list).value_or(""));
     callback(resp);
   } catch (const DrogonDbException& e) {
     LOG_ERROR << "Database error: " << e.base().what();
     SimpleError ret{.error = "Database error"};
-    auto resp = HttpResponse::newHttpResponse(k500InternalServerError,
+    const auto resp = HttpResponse::newHttpResponse(k500InternalServerError,
                                               CT_APPLICATION_JSON);
     resp->setBody(glz::write_json(ret).value_or(""));
     callback(resp);
@@ -944,14 +960,90 @@ Task<> Community::get_subscriptions(
 
   co_return;
 }
+/*
+SELECT unnest(tags) as tag,          -- 移除 DISTINCT
+       COUNT(*) as count
+FROM posts
+GROUP BY tag                          -- GROUP BY 已保证唯一性
+ORDER BY count DESC
+LIMIT 20
 
-// Get popular tags
+GROUP BY tag 已经确保每个 tag 只出现一次
+DISTINCT 是多余的操作，会增加额外的去重开销
+
+  tags 是一个数组字段，如：['Electronics', 'Books', 'Toys']
+  unnest(tags) 将数组展开为多行：
+                              Electronics
+                              Books
+                              Toys
+  实际执行顺序（数据库内部处理顺序）
+① FROM        → 从 posts 表读取数据
+    ↓
+② WHERE       → 过滤行（此查询没有 WHERE）
+    ↓
+③ GROUP BY    → 按 tag 分组
+    ↓
+④ HAVING      → 过滤分组（此查询没有 HAVING）
+    ↓
+⑤ SELECT      → 选择列，计算表达式（unnest、COUNT）
+    ↓
+⑥ DISTINCT    → 去重（此查询中 DISTINCT 是多余的）
+    ↓
+⑦ ORDER BY    → 排序
+    ↓
+⑧ LIMIT/OFFSET → 限制返回行数
+
+详细执行流程图解
+┌─────────────────────────────────────┐
+│ ① FROM posts                        │  ← 第一步：加载表数据
+│    获取所有帖子记录                   │
+└──────────────┬──────────────────────┘
+               ↓
+┌─────────────────────────────────────┐
+│ ② WHERE (如果有过滤条件)             │  ← 第二步：行级过滤
+│    此查询没有 WHERE                  │
+└──────────────┬──────────────────────┘
+               ↓
+┌─────────────────────────────────────┐
+│ ③ GROUP BY tag                      │  ← 第三步：按标签分组
+│    将相同 tag 的行归为一组            │
+└──────────────┬──────────────────────┘
+               ↓
+┌─────────────────────────────────────┐
+│ ④ HAVING (如果有分组过滤)            │  ← 第四步：分组级过滤
+│    此查询没有 HAVING                 │
+└──────────────┬──────────────────────┘
+               ↓
+┌─────────────────────────────────────┐
+│ ⑤ SELECT                            │  ← 第五步：计算列值
+│    - unnest(tags) 展开数组           │
+│    - COUNT(*) 统计每组数量           │
+└──────────────┬──────────────────────┘
+               ↓
+┌─────────────────────────────────────┐
+│ ⑥ DISTINCT                          │  ← 第六步：去重
+│    此查询中多余（GROUP BY 已保证唯一）│
+└──────────────┬──────────────────────┘
+               ↓
+┌─────────────────────────────────────┐
+│ ⑦ ORDER BY count DESC               │  ← 第七步：排序
+│    按数量降序排列                     │
+└──────────────┬──────────────────────┘
+               ↓
+┌─────────────────────────────────────┐
+│ ⑧ LIMIT 20                          │  ← 第八步：限制行数
+│    只返回前 20 条                    │
+└─────────────────────────────────────┘
+
+ */
+// Get popular tags// 按使用频率排名前 20 的标签
 Task<> Community::get_popular_tags(
     HttpRequestPtr req, std::function<void(const HttpResponsePtr&)> callback) {
-  auto db = app().getDbClient();
+  Q_UNUSED(req);
+  const auto db = app().getDbClient();
 
   try {
-    auto result = co_await db->execSqlCoro(
+    const auto result = co_await db->execSqlCoro(
         "SELECT DISTINCT unnest(tags) as tag, "
         "COUNT(*) as count "
         "FROM posts "
@@ -966,13 +1058,13 @@ Task<> Community::get_popular_tags(
                                .count = row["count"].as<int>()});
     }
 
-    auto resp = HttpResponse::newHttpResponse(k200OK, CT_APPLICATION_JSON);
+    const auto resp = HttpResponse::newHttpResponse(k200OK, CT_APPLICATION_JSON);
     resp->setBody(glz::write_json(tags_response).value_or(""));
     callback(resp);
   } catch (const DrogonDbException& e) {
     LOG_ERROR << "Database error: " << e.base().what();
     SimpleError ret{.error = "Database error"};
-    auto resp = HttpResponse::newHttpResponse(k500InternalServerError,
+    const auto resp = HttpResponse::newHttpResponse(k500InternalServerError,
                                               CT_APPLICATION_JSON);
     resp->setBody(glz::write_json(ret).value_or(""));
     callback(resp);

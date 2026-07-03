@@ -47,7 +47,7 @@ class Community : public drogon::HttpController<Community> {
 
   // 所有帖子的分页信息流, 包含帖子信息、用户信息、订阅数、当前用户是否已订阅、媒体附件
   static drogon::Task<> get_posts(
-      const drogon::HttpRequestPtr req,
+      drogon::HttpRequestPtr req,
       std::function<void(const drogon::HttpResponsePtr&)> callback);
   //根据 帖子ID 获取单个帖子
   static drogon::Task<> get_post_by_id(
@@ -58,13 +58,15 @@ class Community : public drogon::HttpController<Community> {
   static drogon::Task<> filter_posts(
       drogon::HttpRequestPtr req,
       std::function<void(const drogon::HttpResponsePtr&)> callback);
+  // 获取当前用户订阅的帖子
   static drogon::Task<> get_subscriptions(
       drogon::HttpRequestPtr req,
       std::function<void(const drogon::HttpResponsePtr&)> callback);
+  // 按使用频率排名前 20 的标签
   static drogon::Task<> get_popular_tags(
       drogon::HttpRequestPtr req,
       std::function<void(const drogon::HttpResponsePtr&)> callback);
-
+  // 创建新帖子
   static drogon::Task<> create_post(
       drogon::HttpRequestPtr req,
       std::function<void(const drogon::HttpResponsePtr&)> callback);
