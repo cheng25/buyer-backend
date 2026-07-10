@@ -597,6 +597,7 @@ libs/curl
 libs/glaze
 libs/jwt-cpp
 libs/libzmq
+libs/nlohmann_json
 libs/redis-plus-plus
 libs/unordered-dense
 
