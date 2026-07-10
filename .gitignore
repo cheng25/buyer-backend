@@ -584,13 +584,19 @@ scripts/setup_test_db.*
 # volumes
 .volumes/
 
-libs/
+libs/argon2/libargon2
 libs/aws-sdk-cpp
+libs/boost/assert
+libs/boost/config
+libs/boost/core
+libs/boost/throw_exception
+libs/boost/type_traits
+libs/boost/uuid
 libs/cppzmq
 libs/curl
 libs/glaze
 libs/jwt-cpp
 libs/libzmq
+libs/redis-plus-plus
 libs/unordered-dense
-libs/boost/assert
-libs/boost/uuid
+

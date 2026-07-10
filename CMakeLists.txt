@@ -53,9 +53,12 @@ find_package(Drogon CONFIG REQUIRED)
 # 子模块依赖：全部 add_subdirectory
 # ==============================
 
-# 1.
+# 1.nlohmann_json
+add_subdirectory(libs/nlohmann_json)
 
 # 2. jwt-cpp
+set(nlohmann_json_DIR ${CMAKE_CURRENT_BINARY_DIR}/libs/nlohmann_json CACHE PATH "" FORCE)
+set(JWT_EXTERNAL_NLOHMANN_JSON ON CACHE BOOL "" FORCE)
 add_subdirectory(libs/jwt-cpp)
 
 # 3. argon2
